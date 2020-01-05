@@ -1,0 +1,31 @@
+problem #1
+Description:
+Fuel required to launch a given module? is based on its mass. Take the module's mass, divide it by three, round down to integer, and subtract 2.
+Fuel needed = floor(mass/3)-2
+Input: mass
+Output: fuel needed
+
+Question: total fuel needed for many modules
+Total fuel needed = sum of fuel needed for each mass
+
+Pseudo code:
+
+object module
+members int mass; 
+member funcion int getFuelNeededToLaunch();
+
+int getFuelNeededToLaunch()
+{
+	//throw error if mass < 0
+	return floor(mass/3.0)-2;
+}
+
+int GetFuelNecessaryForAllModules(module[] modules)
+{
+	int totalFuel = 0;
+	foreach module m in modules
+	{
+		totalFuel += m.getFuelNeededToLaunch();
+	}
+	return totalFuel;
+}
