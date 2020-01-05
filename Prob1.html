@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<p id="demo"></p>
+<p id="demoTwo"></p>
+
+<script>
+  function module(mass){
+    this.mass = mass;
+    this.fuelNeeded = Math.floor(this.mass/3.0)-2;
+  }
+  var moduleOne = new module(20);
+  var moduleTwo = new module(30);
+
+document.getElementById("demo").innerHTML =
+"moduleOne has mass " + moduleOne.mass + " and need fuel of " + moduleOne.fuelNeeded;
+
+document.getElementById("demoTwo").innerHTML =
+"moduleTwo has mass " + moduleTwo.mass + " and need fuel of " + moduleTwo.fuelNeeded;
+
+</script>
+
+</body>
+</html>
