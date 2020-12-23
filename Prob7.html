@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent of Code Problem 7</Title>
+    </head>
+    <body>
+        <p id = "instruction">Select input file</p>
+        <input id = "inputFile" type = "file" onChange = "openFile()">
+        <p id = "outputValue">Output</p>
+        <script src = "common.js"></script>
+        <script>
+            function runProgramOn(inputs, program)
+            {
+                var output;
+                var outputs = [];
+                var totalFinished = 0;
+                while(totalFinished < inputs.length)
+                {
+                    for(var i = 0; i  < inputs.length; i++)
+                    {
+                        if(outputs.length < inputs.length)//start running program on each amplifier
+                        {
+                            output = processIntCodeProgram(program.slice(0), inputs[i], output == undefined ? 0:output.output);
+                            outputs.push(output);
+                        }
+                        else
+                        {
+                            output = processIntCodeProgram(outputs[i].program, outputs[i].readPhase ? undefined:inputs[i], output.output/*previous output*/, outputs[i].pos);
+                            outputs[i] = output;
+                        }
+                        if(outputs[i].isFinished)
+                            totalFinished++;
+                    }
+                }
+                return output.output;
+            }
+            function getAllSequences(avaCodes)
+            {
+                var seqSets = [], sequences = [], cur;
+                if(avaCodes == undefined) return undefined;
+                if(avaCodes.length == 0) return [];
+                if(avaCodes.length == 1) 
+                {
+                    sequences.push(avaCodes.slice(0));
+                    return sequences;
+                }
+                for(var i = 0; i < avaCodes.length; i ++)
+                {
+                    cur = avaCodes[i];
+                    avaCodes.splice(i, 1);
+                    sequences = getAllSequences(avaCodes);
+                    sequences.forEach(element => element.unshift(cur));
+                    seqSets = seqSets.concat(sequences);
+                    avaCodes.splice(i, 0, cur);
+                }
+                return seqSets;
+            }
+            //opens an input file and output the first position 
+            function openFile()
+            {
+              var input = document.querySelector('input#inputFile');
+              if(input.files.length == 0) return;
+              var reader = new FileReader();
+              reader.onload = function()
+              {
+                var program = reader.result.split(',').map(function(item)
+                            { return parseInt(item)});
+                    var avaCodes = [5, 6, 7, 8, 9];
+                    var inputs = [];
+                    var maxOutput = {code:[], output: 0}, curOutput = 0;
+                    inputs = getAllSequences(avaCodes);
+                    log.logMe(inputs);
+                    for(var i = 0; i < inputs.length; i++)
+                    {
+                        curOutput = runProgramOn(inputs[i], program);
+                        log.logMe("input sequence " + inputs[i] + " produces " + curOutput);
+                        if(curOutput > maxOutput["output"]) maxOutput = {code:inputs[i], output: curOutput};
+                    }
+                    
+                    document.getElementById("outputValue").innerHTML = "best sequence: " + maxOutput.code + " produces " + maxOutput.output;
+              }
+              reader.readAsText(inputFile.files[0]);
+            }
+        </script>
+    </body>
+
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent of code Problem #4</Title>
+    </head>
+    <body>
+        <script>
+            var low = 264360, high = 746325;
+            var cur;
+            var numValidPassword = 0;
+            for(;low < high; low++)
+            {
+                cur = low.toString();
+                //rule: two adjacent digits are the same
+                //rule: the adjacent digits are not part of a larger group of equal digits 122234
+                if(((cur[0] == cur[1]) && (cur[1] != cur[2]))
+                || ((cur[1] == cur[2]) && (cur[0] != cur[1]) && (cur[2] != cur[3]))
+                || ((cur[2] == cur[3]) && (cur[1] != cur[2]) && (cur[3] != cur[4]))
+                || ((cur[3] == cur[4]) && (cur[2] != cur[3]) && (cur[4] != cur[5]))
+                || ((cur[4] == cur[5]) && (cur[3] != cur[4])))
+                {
+                    //rule: from left to right, number does not decrease
+                    if((cur[0] <= cur[1])
+                    && (cur[1] <= cur[2])
+                    && (cur[2] <= cur[3])
+                    && (cur[3] <= cur[4])
+                    && (cur[4] <= cur[5]))
+                    {
+                        console.log(cur);
+                        numValidPassword += 1;
+                    }
+
+                }
+            }
+            var element = document.createElement("p");
+            var txtNode = document.createTextNode("Total password: " 
+            + numValidPassword);
+            element.appendChild(txtNode);
+            var body = document.getElementsByTagName("body");
+            body[0].appendChild(element);
+        </script>
+    </body>
+</html>

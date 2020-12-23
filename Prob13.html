@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Problem 13</title>
+    </head>
+    <body>
+        <input id = "input" type = "file" onchange="openFile()">
+        <p id = "output"></p>
+        <script src = "common.js"></script>
+        <script>
+            class Ray {
+                constructor(start, pointOnRay)
+                {
+                    var directions = {north:{x:0, y:-1}, south:{x:0, y:1}, east:{x:1, y:0}, west:{x:-1, y:0}};
+                    this.start = start;
+                    this.slope =  (pointOnRay.y - start.y)/(pointOnRay.x - start.x);
+                    this.impactDelta = new Coordinate(0, 0);
+                    if(pointOnRay.y < start.y)  this.impactDelta = this.impactDelta.add(directions.north);
+                    else if(pointOnRay.y > start.y) this.impactDelta = this.impactDelta.add(directions.south);
+                    if(pointOnRay.x < start.x) this.impactDelta = this.impactDelta.add(directions.west);
+                    else if(pointOnRay.x > start.x) this.impactDelta = this.impactDelta.add(directions.east);
+                }
+                getImpactRay(item)
+                {
+                    var rayItem = new Ray(this.start, item);
+                    var impactPoint, pointOnRay;
+                    if((this.slope === rayItem.slope) && (rayItem.impactDelta.equals(this.impactDelta)))
+                    {   
+                        impactPoint = item.minus(this.impactDelta);
+                        pointOnRay = impactPoint.minus(this.impactDelta);
+                        return new Ray(impactPoint, pointOnRay);
+                    }
+                    var itemX = new Coordinate(item.x + this.impactDelta.x, item.y);
+                    var rayItemX = new Ray(this.start, itemX);
+                    if((this.slope === rayItemX.slope) && (rayItemX.impactDelta.equals(this.impactDelta)))
+                    {
+                        impactPoint = itemX.minus(this.impactDelta);
+                        pointOnRay = impactPoint.add(new Coordinate(this.impactDelta.x, this.impactDelta.y * -1));
+                        return new Ray(impactPoint, pointOnRay);
+                    }
+                    var itemY = new Coordinate(item.x, item.y + this.impactDelta.y);
+                    var rayItemY = new Ray(this.start, itemY);
+                    if((this.slope === rayItemY.slope) && (rayItemY.impactDelta.equals(this.impactDelta)))
+                    {
+                        impactPoint = itemY.minus(this.impactDelta);
+                        pointOnRay = impactPoint.add(new Coordinate(this.impactDelta.x * -1, this.impactDelta.y));
+                        return new Ray(impactPoint, pointOnRay);
+                    }
+                }
+
+                getTargetXFor(y)
+                {
+                    var xCorner = (y - this.start.y)/this.slope + this.start.x;
+                    var xOver = xCorner - this.impactDelta.x;
+                    var distanceCorner = Math.abs(this.start.x - xCorner);
+                    var distanceOver = Math.abs(this.start.x - xOver);
+                    if(distanceCorner < distanceOver) 
+                        return xCorner;
+                    else
+                        return xOver;
+                }
+            }
+            class ArcadeBeater {
+                constructor(initList, firstStep)
+                {
+                    this.types = {blank: 0, wall: 1, block: 2, paddle: 3, ball: 4};
+                    function removeTypeFrom(list, type){
+                        var output = [];
+                        var count = list.length;
+                        for(var i = 0; i < count; i = i + 3)
+                        { 
+                            if(list[i+2] === type)
+                            {
+                                output.push(new Coordinate(list[i], list[i+1]));
+                                list.splice(i, 3);
+                                i = i - 3;
+                            }
+                        }
+                        return output;
+                    }
+                    this.blockLoc = removeTypeFrom(initList, this.types.block);
+                    this.wallLoc = removeTypeFrom(initList, this.types.wall);
+                    
+                    this.paddleLoc = removeTypeFrom(initList, this.types.paddle)[0];
+
+                    var startBall = removeTypeFrom(initList, this.types.ball)[0];
+                    var newBallLoc = removeTypeFrom(firstStep, this.types.ball)[0];
+                    this.ball = new Ray(startBall, newBallLoc);
+                }
+                getInputs()
+                {
+                    function getSlope(a, b)
+                    {
+                        var slope = (b.y - a.y)/(b.x - a.x);
+                        return slope;
+                    }
+                    function getImpactInformation(ball, list)
+                    {
+                        var ray, distance, minDistance = Infinity, output;
+                        for(var i = 0; i < list.length; i++){
+                        
+                            ray = ball.getImpactRay(list[i]);
+                            if(ray !== undefined) 
+                            {
+                                distance = Math.pow(list[i].y - ball.start.y, 2) + Math.pow(list[i].x - ball.start.x, 2);
+                                if(distance < minDistance)
+                                {
+                                    minDistance = distance;
+                                    output = {ray:ray, index:i};
+                                }
+                            }
+                        }
+
+                        return output;
+                    }
+                    function predictPaddleImpact(ball, paddle)
+                    {
+                        var impactX = ball.getTargetXFor(paddle.y);
+                        var impactRay = ball.getImpactRay(new Coordinate(impactX, paddle.y));
+                        return {ray: impactRay, x: impactX};
+                    }
+                    function getDirection(destLocX, curLocX)
+                    {
+                        var joyDirection = {neutral: 0, left: -1, right:1};
+                        if(curLocX > destLocX) return joyDirection.left;
+                        else if(curLocX < destLocX) return joyDirection.right;
+                        else return joyDirection.neutral;
+                    }
+                    function createInputs(neededMoves, availMoves, direction)
+                    {
+                        var inputs = [];
+                        for(var i = 0; i < availMoves; i++)
+                        {
+                            if(neededMoves > 0)
+                            {
+                                inputs.push(direction);
+                                neededMoves--;
+                            }
+                            else
+                            {
+                                inputs.push(0);
+                            }
+                        }
+                        return inputs;
+                    }
+                    var inputs = [], impactInfo, direction, availMoves = 0, neededMoves;
+                   // while(this.blockLoc.length > 0)
+                   for(var c = 0; c < 5; c++)
+                    {
+                        //check to see if the ball will hit any blocks
+                        impactInfo = getImpactInformation(this.ball, this.blockLoc);
+                        if(impactInfo === undefined)
+                        {
+                            //check to see if the ball will hit any walls
+                            impactInfo = getImpactInformation(this.ball, this.wallLoc);
+                            if(impactInfo === undefined)
+                            {
+                                impactInfo = predictPaddleImpact(this.ball, this.paddleLoc);
+                                //get where paddle needs to move to on the x-axis
+                                availMoves += this.paddleLoc.y - this.ball.start.y - 1;
+                                neededMoves = Math.abs(impactInfo.x - this.paddleLoc.x);
+                                direction = getDirection(impactInfo.x, this.paddleLoc.x);
+                                inputs = inputs.concat(createInputs(neededMoves, availMoves, direction));
+                                
+                                //set to new game state
+                                availMoves = 0;
+                                this.paddleLoc.x = impactInfo.x;
+                            }
+                            else//ball will hit a wall
+                            {
+                                availMoves += Math.abs(impactInfo.ray.start.y - this.ball.start.y);
+                            }
+                        }
+                        else//ball will hit a block
+                        {
+                            availMoves += Math.abs(impactInfo.ray.start.y - this.ball.start.y);
+                            this.blockLoc.splice(impactInfo.index, 1);
+                        }
+                        this.ball = impactInfo.ray;
+                    }
+
+                    return inputs;
+                }
+                
+            }
+            function openFile()
+            {
+                var file = document.querySelector("input#input");
+                if(file.files.length === 0) return;
+                var reader = new FileReader();
+                reader.onload = function()
+                {
+                    function decode(cCode){
+                        var colors = ["white", "black", "green", "blue", "red"];
+                        return colors[cCode];
+                    }
+                    var program = reader.result.split(',').map(function(item)
+                                { return parseInt(item)});
+                    var game = new IntCodeMachine(program);
+                    var output = game.run(undefined);
+                    var initList = output.outputs.slice(0);
+                    var board = new Board();
+                    board.update(output.outputs);
+                    var element = document.getElementById("output");
+                    element.innerHTML = board.draw(decode);
+                    window.onkeydown = function (e){
+                        var input = 0;
+                        if(e.keyCode === 37)//left = 37
+                        {
+                            input = -1;
+                        }
+                        if(e.keyCode === 39)//right = 39
+                        {
+                            input = 1;
+                        }
+                        output = game.run([input]);
+                        board.update(output.outputs);
+                        element.innerHTML = board.draw(decode);
+                    }
+                }
+                reader.readAsText(file.files[0]);
+            }
+        </script>
+    </body>
+</html>

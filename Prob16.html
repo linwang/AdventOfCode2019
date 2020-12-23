@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <title>Problem 16</title>
+    </head>
+    <body>
+        <input id = "input" type = "file" onchange = "openFile()">
+        <div id = "output"></div>
+        <script src = "common.js"></script>
+        <script>
+            class FFT {
+                constructor(input = [], repeats = 1, offset = 0)
+                {
+                    this.input = input;
+                    this._phases = [];
+                    this.repeats = repeats;
+                    this.shift = 1;
+                    if(input.length > offset)
+                    {
+                        this.offset = 0;
+
+                        for(let i = 0; i < offset; i ++)
+                        {
+                            this.offset += input[i] * Math.pow(10, offset - i - 1);
+                        }
+                    } 
+                    this.basicPatternLength = 4;
+                    this.basicPattern = [0, 1, -1, 0];
+                }
+                _getNextPhaseForIndex(index, input, prevSum = 0)
+                {
+                    let sum = 0, digit;
+                    let patternRepeats, iPatternInPattern, iPatternInInput;
+                    let iRepeat, iInput, i;
+                    let totalElements, lowestIndex;
+                    let result = [];
+                    if(input === undefined)
+                    {
+                        input = this.input;
+                        totalElements = input.length * this.repeats;
+                        lowestIndex = 0;
+                    }
+                    else
+                    {
+                        lowestIndex = this.offset;
+                        totalElements = input.length + lowestIndex;
+                    }
+                    
+                    sum = 0;
+                    patternRepeats = index + 1;
+                    for(iInput = totalElements - 1; iInput >= lowestIndex;)
+                    {
+                        iPatternInPattern = Math.floor((iInput + this.shift)/patternRepeats) % this.basicPatternLength;
+                        iPatternInInput = (iInput + this.shift) % patternRepeats;
+                        if((iPatternInPattern === 1) || (iPatternInPattern === 3))//pattern = 1 or -1
+                        {
+                            i = (iInput - lowestIndex - iPatternInInput) % input.length;
+                            //TODO: incomplete
+                            if(iPatternInPattern === 1)
+                                sum = prevSum + input[i];
+                            else
+                                sum = prevSum - input[i];
+                           
+                        }
+                        //to last item of previous pattern
+                        iInput = iInput - iPatternInInput - 1;
+                    }
+                    digit = Math.abs(sum%10);
+                    return digit;
+                }
+                _getNextPhaseForInput(input)
+                {
+                    let iOutput, output;
+                    let totalElements;
+                    let result = [];
+                    
+                    if(input === undefined)
+                    {
+                        //initial input has 0 - end
+                        totalElements = this.input.length * this.repeats;
+                    }
+                    else
+                    {
+                        //subsequent inputs are only from offset - end
+                        totalElements = input.length + this.offset;
+                    }
+                    
+                    for(iOutput = totalElements - 1; iOutput >= this.offset; iOutput --)
+                    {
+                        output = this._getNextPhaseForIndex(iOutput, input, output);
+                        result.unshift(output);
+                    }
+                    return result;
+                }
+                getPhaseForCount(count)
+                {
+                    if(this._phases[count] != undefined)
+                        return this._phases[count];
+                    
+                    let output, input;
+                    if(count === 1) 
+                    {
+                        output = this._getNextPhaseForInput();
+                    }
+                    else
+                    {
+                        input = this.getPhaseForCount(count - 1);
+                        output = this._getNextPhaseForInput(input);
+                    }
+                    this._phases[count] = output;
+                    return output;
+                }
+            }
+            function openFile()
+            {
+                let file = document.querySelector("input#input");
+                if (file.files.length === 0) return;
+                let reader = new FileReader();
+                reader.onload = function () {
+                    let input = reader.result.split("").map(element => parseInt(element));
+                    let fft = new FFT(input, 10000, 7);
+                    let output = fft.getPhaseForCount(1);
+                    let outputElement  = document.getElementById("output");
+                    outputElement.innerHTML = output.slice(0, 130);
+                    output = fft.getPhaseForCount(100);
+                    outputElement.innerHTML += "<br>" + output.slice(0, 130);
+                }
+                reader.readAsText(file.files[0]);
+            }
+        </script>
+    </body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Problem 17</title>
+    </head>
+    <body>
+        <input type = "file" id = "input" onchange="openFile()">
+        <div id = "output"></div>
+        <script src = "common.js"></script>
+        <script>
+            function asciiToString(outputList)
+            {
+                let str = output.outputs.reduce((sum, element) => sum + String.fromCharCode(element), "");
+                return str;
+            }
+            function stringToAscii(str)
+            {
+                let asciiList = [];
+                for(let i = 0; i < str.length; i++)
+                {
+                    asciiList.push(str.charCodeAt(i));
+                }
+                asciiList.push(10);
+                return asciiList.slice(0);
+            }
+            class CleanerDroid extends Droid
+            {
+                constructor(machine)
+                {
+                    let dirTypes = {north:"N", south:"S", west:"W", east:"E"};
+                    let objectTypes = {wall:'.', path:'#', droidNorth:'^', droidSouth:'v', droidWest:'<', droidEast:'>', droidFallen:'X'};
+                    super(machine, objectTypes, dirTypes);
+                }
+                run(inputs)
+                {
+                    let directions = {'^':"north", 'v':"south", '<':"west", '>':"east"};
+                    let output = super.run(inputs);
+                    let character;
+                    let map = [], x = 0, y = 0, message = "";
+                    let types = this.getTypes();
+                    for(let charCode of output.outputs)
+                    {
+                        character = String.fromCharCode(charCode);
+                        switch(character)
+                        {
+                            case'\n':
+                                y++;
+                                x = 0;
+                                break;
+                            case types.droidNorth:
+                            case types.droidSouth:
+                            case types.droidEast:
+                            case types.droidWest:
+                            case types.droidFallen:
+                                this.position = new Coordinate(x, y); 
+                                this.direction = directions[character];
+                            case types.wall:
+                            case types.path:    
+                                map.push({location:new Coordinate(x, y), type:character});
+                                x++;
+                                break;
+                            default:
+                                message += character;
+                        }
+                    }
+                    return {"map":map.slice(0), "message":message};
+                }
+            }
+            class CleanerDroidDriver extends DroidDriver
+            {
+                getNextDirection()
+                {
+                    let direction;
+                    let prevDirection = this._availDirections[this._dirIndex];
+                    let newPosition = this._droid.calcNew(this._droid.position, prevDirection);
+                    if((this._map[newPosition.toString()] !== undefined)
+                    &&(this._map[newPosition.toString()].type === this._pathType))
+                    {
+                        direction = prevDirection;
+                    }
+                    else
+                    {
+                        let smallestCount = {count:Infinity, dirIndex:0};
+                        let totalDirections = this._availDirections.length;
+                        for(let i = 0; i < totalDirections; i++)
+                        {
+                            this._dirIndex = (this._dirIndex + 1) % totalDirections;
+                            let newPosition = this._droid.calcNew(this._droid.position, this._availDirections[this._dirIndex]).toString();
+                            if((this._map[newPosition] !== undefined)
+                            &&(this._map[newPosition].type !== this._wallType))
+                            //if new input does not go to a wall, track input
+                            {
+                                if(this._map[newPosition].count < smallestCount.count)
+                                {
+                                    smallestCount.count = this._map[newPosition].count;
+                                    smallestCount.dirIndex = this._dirIndex;
+                                }
+                            }
+                        }
+                        this._dirIndex = smallestCount.dirIndex;
+                        direction = this._availDirections[this._dirIndex];
+                    }
+                    
+                    let stop = true;
+                    for(let key in this._map)
+                    {
+                        if((this._map[key].count === 0) && (this._map[key].type === this._pathType))
+                        {
+                            stop = false;
+                            break;
+                        }
+                    }
+                    if(stop)
+                        return -1;
+                    else
+                    {
+                        this._droid.position = this._droid.calcNew(this._droid.position, direction);
+                        this.updateMap([{location:this._droid.position, type:this._pathType}]);
+                        return direction;
+                    }
+                }
+            }
+            function openFile()
+            {
+                var input = document.querySelector('input#input');
+                if(input.files.length == 0) return;
+                var reader = new FileReader();
+                reader.onload = function()
+                {
+                    let program = reader.result.split(',').map(element => parseInt(element));
+                    let machine = new IntCodeMachine(program);
+                    let colorTypes = {'.': "white", "#": "black", '^':"red", 'O':"green", 0:"white"};
+                    let droid = new CleanerDroid(machine);
+                    let output = droid.run();//get initial map
+                    let types = droid.getTypes();
+                    let driver = new CleanerDroidDriver(droid);
+                    driver.updateMap(output.map);
+                    let board = new Board();
+                    board.update(output.map);
+                    function decode(key)
+                    {
+                        if(key === undefined)
+                            key = '.';
+                        let colorCodes = {'.': "white", "#": "black", '^':"red", '>':"red", 'O':"green", 0:"white"};
+                        return colorCodes[key];
+                    }
+                    let element = document.getElementById("output");
+                    element.innerHTML = board.draw(decode);
+                    let directions = [];
+                    let direction = "";
+                    let length = 0;
+                    do{
+                        direction = driver.getNextDirection();
+                        if(direction === -1)
+                            break;
+                        length = directions.length;
+                        if((length > 0)
+                            &&(directions[length - 1].direction === direction))
+                        {
+                            directions[length - 1].count ++;
+                        }   
+                        else
+                        {
+                            directions.push({direction:direction, count: 1});
+                        }
+                    }while (true);
+                    let inputInstrs = "";
+                    for(let dir of directions)
+                    {
+                        inputInstrs += dir.direction + dir.count + ", ";
+                    }
+                    element.innerHTML += inputInstrs;
+                    let main = "A,B,A,C,B,C,A,B,A,C";
+                    let inputA = "R,10,L,8,R,10,R,4";
+                    let inputB = "L,6,L,6,R,10";
+                    let inputC = "L,6,R,12,R,12,R,10";
+                    output = droid.run(stringToAscii(main));
+                    element.innerHTML += output.message;
+                    output = droid.run(stringToAscii(inputA));
+                    element.innerHTML += output.message;
+                    output = droid.run(stringToAscii(inputB));
+                    element.innerHTML += output.message;
+                    output = droid.run(stringToAscii(inputC));
+                    element.innerHTML += output.message;
+                    output = droid.run(stringToAscii('N'));
+                    board.clear();
+                    board.update(output.map);
+                    element.innerHTML += "<br>";
+                    element.innerHTML += board.draw(decode);
+                    /*let neighborLocDeltas = {north:{x:0, y:-1}, south:{x:0, y:1}, west:{x:-1, y:0}, east:{x:1, y:0}};
+                    let neighborType = "";
+                    let loc, scaffoldNeighbors = 0;
+                    let cameras = [];
+                    for(let item of map)
+                    {
+                        if(item.type === '#')
+                        {
+                            scaffoldNeighbors = 0
+                            for(key in neighborLocDeltas)
+                            {
+                                loc = item.location.add(neighborLocDeltas[key])
+                                neighborType = board.getValue(loc.toString());
+                                if(neighborType === item.type)
+                                {
+                                    scaffoldNeighbors ++;
+                                }
+                            }
+                            if(scaffoldNeighbors > 2)
+                            {
+                                item.type = 'O';
+                                cameras.push(item);
+                            }
+                        }
+                    }
+                    board.update(cameras);
+                    element.innerHTML = board.draw(decode);
+                    let alignmentParam = 0, total = 0;
+                    for(let camera of cameras)
+                    {
+                        alignmentParam = (camera.location.x) * (camera.location.y);
+                        total += alignmentParam;
+                    }
+                    element.innerHTML += "<br> Alignment parameter sum: " + total;*/
+                }
+                reader.readAsText(input.files[0]);
+            
+            }
+        </script>
+    </body>
+</html>

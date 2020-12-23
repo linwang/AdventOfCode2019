@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent of Code Problem 2</Title>
+    </head>
+    <body>
+        <input type = "file" id = "inputFile" onChange = "openAndRunProgram()">
+        <p id = "outputValue">Value at the first position is</p>
+        <script>
+            //Runs the program and returns value at pos 0
+            function processIntCodeProgram(program)
+            {
+             //   console.log(program);
+                for(pos = 0; pos < program.length - 3; pos += 4)
+                {
+                    if(program[pos] == 99) return program[0];
+                    else if (program[pos] == 1)
+                    {
+                        program[program[pos+3]] = program[program[pos+1]] 
+                        + program[program[pos+2]];
+                    }
+	                else if (program[pos] == 2)
+		                program[program[pos+3]] = program[program[pos+1]]
+                         * program[program[pos+2]];
+	                else
+                    {
+		                console.log("Cannot understand instruction at position " + pos);
+		                return -1;
+                    }
+                }
+            }
+            //find the noun and verb pair that can produce output
+            //from program; return 100 * noun + verb
+            function getInputForProgramOutput(output, program)
+            {
+                //try noun from 0 to length -1
+                //try verb from 0 to length -1
+                //for each noun and verb pair 
+                //make a copy of program
+                //assign the values to position 1 and 2 of program
+                //run the program and check the output
+                //return (100 * noun + verb) if the output matches
+                //else keeps running
+                var progCopy = program.slice(0);
+                for(var noun = 0; noun < progCopy.length; noun ++)
+                {
+                    for(var verb = 0; verb < progCopy.length; verb ++)
+                    {
+                        progCopy[1] = noun;
+                        progCopy[2] = verb;
+                        if(processIntCodeProgram(progCopy) == output)
+                            return (100*noun + verb);
+                        progCopy = program.slice(0);
+                    }
+                }
+                console.log("No matches found");
+                return -1;
+            }
+            //opens an input file and output the first position 
+            function openAndRunProgram()
+            {
+              var input = document.querySelector('input#inputFile');
+              if(input.files.length == 0) return;
+              var reader = new FileReader();
+              reader.onload = function()
+              {
+                var program = reader.result.split(',').map(function(item)
+                            { return parseInt(item)});
+                var element = document.getElementById('outputValue');
+                element.innerHTML = "Value at the first position is " 
+                + getInputForProgramOutput(19690720, program);
+              }
+              reader.readAsText(inputFile.files[0]);
+            }
+        </script>
+    </body>
+</html>

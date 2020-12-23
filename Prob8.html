@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent of Code Problem 8</Title>
+    </head>
+    <body>
+        <p id = "instruction">Select input file</p>
+        <input id = "inputFile" type = "file" onChange = "openFile()">
+        <div id = "outputValue">Output</div>
+        <script src = "common.js"></script>
+        <script>
+            var log = new Logging(false); 
+            function getLayers(digits, size)
+            {
+                var layers = [];
+                for(var i = 0; i < digits.length; i += size)
+                {
+                    layers.push(digits.substr(i, size));
+                }
+                return layers;
+            }
+            function searchLayer(str, layer)
+            {
+                return (layer.match(new RegExp(str, "g"))||[]).length;
+            }
+            function searchLayers(str, layers)
+            {
+                var counts = [];
+                var regExp = new RegExp(str, "g");
+                layers.forEach(element => counts.push((element.match(regExp)||[]).length));
+                return counts;
+            }
+            function getMinIndex(arr)
+            {
+                var iMin = 0, vMin = Infinity;
+                for(var i = 0; i < arr.length; i ++)
+                {
+                    if(arr[i] < vMin)
+                    {
+                        vMin = arr[i];
+                        iMin = i;
+                    }
+                }
+                return iMin;
+            }
+            function openFile()
+            {
+              var input = document.querySelector('input#inputFile');
+              if(input.files.length == 0) return;
+              var reader = new FileReader();
+              reader.onload = function()
+              {
+                var input = reader.result.replace(/\D/g,'');
+                const width = 25, height = 6;
+                const imageSize = width * height;
+                var layers = getLayers(input, imageSize);
+                log.logMe(layers);
+                var finalImage = "";
+                for(var pix = 0; pix < layers[0].length; pix++)
+                {
+                    for(var lay = 0; lay < layers.length; lay++)
+                    {
+                        if(layers[lay][pix] != '2')
+                        {
+                            finalImage += layers[lay][pix];
+                            break;
+                        }
+                        if(lay == layers.length - 1)
+                        {
+                            finalImage += layers[lay][pix];
+                            log.logMe("last layer of pixel " + pix);
+                        }
+                    }
+                }
+                log.logMe(finalImage);
+                var colors = {white:'<span style = "background-color:white">', black:'<span style = "background-color:black">'};
+                var endSpan = "</span>";
+                var br = "<br>";
+                var final = "";
+                for(var i = 0; i < finalImage.length; i++)
+                {
+                    if((i%width == 0) && (i > 0))
+                    {
+                        final += br;
+                    }
+                    if(finalImage[i] == '0')
+                    {
+                        final = final + colors.white + finalImage[i] + endSpan;
+                    }
+                    else
+                    {
+                        final = final + colors.black + finalImage[i] + endSpan;
+                    }
+                }
+                log.logMe(final);
+                document.getElementById("outputValue").innerHTML = final;
+              }
+              reader.readAsText(inputFile.files[0]);
+            }
+        </script>
+    </body>
+
+</html>

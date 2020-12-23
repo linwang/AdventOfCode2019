@@ -1,24 +1,45 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="utf-8">
+    <Title>Advent of Code Problem 1</Title>
+  </head>
 <body>
-
-<p id="demo"></p>
-<p id="demoTwo"></p>
-
+<input type = "file" id = "inputFile" onchange = "openAndCalculateTotalFuel()">
+<p id="totalFuel">Total fuel is 0</p>
 <script>
-  function module(mass){
-    this.mass = mass;
-    this.fuelNeeded = Math.floor(this.mass/3.0)-2;
+  //calculate and return fuel for a module with mass
+  //invalid mass or fuel, return 0.
+  function getFuel(mass){
+    if(isNaN(Number(mass))) return 0;
+    var fuel = Math.floor(mass/3)-2;
+    if(fuel < 0 ) return 0;
+    else return fuel + getFuel(fuel);
   }
-  var moduleOne = new module(20);
-  var moduleTwo = new module(30);
-
-document.getElementById("demo").innerHTML =
-"moduleOne has mass " + moduleOne.mass + " and need fuel of " + moduleOne.fuelNeeded;
-
-document.getElementById("demoTwo").innerHTML =
-"moduleTwo has mass " + moduleTwo.mass + " and need fuel of " + moduleTwo.fuelNeeded;
-
+  //calculate and return total fuel for all masses
+  function totalFuel(masses){
+    var total = 0;
+    for(i = 0; i<masses.length; i++)
+    {
+      total += getFuel(masses[i]);
+      //console.log(i + " " + total);
+    }
+    return total;
+  }
+  //opens an input file and calculates the total fuel
+  function openAndCalculateTotalFuel()
+  {
+    var input = document.querySelector('input#inputFile');
+    if(input.files.length == 0) return;
+    var reader = new FileReader();
+    reader.onload = function()
+    {
+      var masses = reader.result.split('\n');
+      var element = document.getElementById('totalFuel');
+      element.innerHTML = "Total fuel is " + totalFuel(masses);
+    }
+    reader.readAsText(inputFile.files[0]);
+  }
 </script>
 
 </body>

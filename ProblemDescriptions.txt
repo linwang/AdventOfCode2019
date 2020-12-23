@@ -29,3 +29,591 @@ int GetFuelNecessaryForAllModules(module[] modules)
 	}
 	return totalFuel;
 }
+#1B fuel for a module is actually fuel + getFuel(fuel) + ... until getFuel(fuel) returns 0
+basically need to call getFuelNeededToLaunch(mass) recursively until fuel become invalid <= 0
+
+2 Intcode program: a list of integers separated by commas like 1,0,0,3,99
+Position 0: opcode 1, 2 or 99. it indicates what to do. an unknown opcode means something went wrong
+opcode 99: the program is finishd and should immediately halt
+opcode 1: input[pos1] + input[pos2] = output[pos3]
+opcode 2: input[pos1] * input[pos2] = output[pos3]
+After reading and processing an opcode, move down 4 places in the Intcode program to process the next one
+Input: an Intcode program
+Output: value at position 0
+
+Read Intcode program from position x=0, then position x+=4, until position x has opcode of 99 or x is > input.lengh - 4.  
+
+ProcessIntcodeprogram(program)
+{
+	for(pos = 0; pos < program.length - 3; pos +=4)
+{
+	if(program[pos] == 99) return program[0];
+	else if (program[pos] == 1) 
+		program[pos+3] = program[pos+1] + program[pos+2];
+	else if (program[pos] == 2)
+		program[pos+3] = program[pos+1] * program[pos+2];
+	else
+{
+		console.write("An error occurred at position " + pos);
+		return -1;
+}
+}
+}
+
+2b 
+Given: program input
+Ask: what pair of values in position 1 (noun) and position 2 (verb) will produce an output (position 0) of 19690720? After finding the values, submit 100*noun + verb?
+
+program[1] from 0 to program.length - 1
+program[2] from 0 to program.length - 2
+check each output if it equals 19690720
+
+Problem #3
+Given: two wires on a map who both come out of o (central port) then twist and turn on the map
+Find the crosspoint of the two wires that's the closest to the central port. Use manhattan distance to measure.
+
+Manhattan distance between two points (x1, y1) and (x2, y2) is abs(x1-x2)+abs(y1-y2)
+
+Input wire coordinates are written in directionDistanceTraveled. So if a wire starts at the central port, then a R8, U5, L5, D3 would mean Right8, Up5, Left5 then Down3. Translating to cartesian coordinates, it becomes (0, 0) (0, 8) (5, 8) (5, 3) (2, 3). 
+Manhattan distance between (0, 0) to (2, 3) is 2 + 3 = 5
+
+To find the crosspoint between two wires on the same map, I can first map out all the locations of the first wire. So R8, U5, L5, D3, and D3 means that (0,0) (0,1) (0,2) (0,3) etc all contains the wire. Then use another map to store all the locations of the second wire. 
+After mapping out both wires, compare each coordinate to see if wire 1 and wire 2 both exist. If they do, then it's a cross point. Store that point in an array. Finally, calculate all the manhattan distances from the stored points to the port at (0, 0), the minimum is the output.
+
+Performance nX*nY + mX*mY + max(nX, mX)*max(nY, nY). 
+
+To improve performance, can map out only wire1 (nX*nY) then see if wire2 exists in the same coordinate a wire1, if so, store the cross point. O(nX*nY)
+
+In javascript, I can make an array of arrays instead of a double array. So maybe something like wire1 = [[1,0], [1,0], [1,0]]; wire1[0][0] is 1 wire1[1, 0] is 1 and wire1 [2,0] is 1. That's equivalent to wire1 U3. Let's give this a try
+
+Instead of tracking points, I'm tracking lines. An array where the endding coordinate of each line is recorded. So an input of 300 directions produces a wire of 300 end of line coordinates. It's much faster than the tracking points methods. The cross point can be easily produced because this problem only tracks right angle intersections.
+
+3b Instead of closest manhattan point, get the intersection where the total traveled on wire1 and wire2 is the shortest distance? Is it the same as the first crosspoint hit on each wire? 
+No, wire1's first intersection can be the nth intersection on wire2, vice versa. It's important to get all the cross points
+With my previous use of line end points, can I store with it the total steps taken so far? Yes, then when I get to a cross point, I can take the total steps at the beginning of each line plus the steps from beginning to intersection to get the total steps for each wire.
+
+Okay, let's try that.
+
+Problem #4
+Given: 
+1. input has 6 digits 
+2. going from left to right, digit never decreases
+input range is from x - y
+3. at least one set of doubles (two adjacent digits are the same)
+Find: For a given input range, how many different passwords fit the criteria?
+A simple non-performant solution is to put each valid number in the range through a test of criterion, and only increment the counter if it passes the test.
+A better way is to increase the number within the range with some of the rules in mind. Like rule #2, you only need to increase the range from the lowest of the previous number.
+
+Problem #5
+Given: 
+FIRST new opcodes
+Opcode 3 takes an input and saves at position address x (3, x)
+Opcode 4 outputs at address x (4, x)
+SECOND parameter modes
+position mode 0: parameter # gives the position of input/output
+immediate mode 1: //
+THREE location
+opcodes and parameters are stored in the same location. opcode takes the right two digits, each parameter takes one digit. 1002 reads to be opcode 2, parameter 1 is 0 and parameter 2 is 1. If nothing is written for a parameter, then assume 0. 
+Parameters that an instruction writes to is always in position mode
+Find: Provide 1 for the program input (air conditioning system), what's the diagnostic code output at position given by optCode 4 before program termination (99)
+
+5B
+Opcode 5: jump-if-true; instruction length of 3; if parameter 1 if true, set instruction pointer to the value of parameter 2; if parameter 1 if false, do nothing
+Opcode 6: jump-if-false; len = 3; if parameter 1 is false, set instruction pointer to the value of parameter 2
+Opcode 7: less than; len = 4; if the first parameter is less than the second parameter, stores 1 at position given by the third parameter; else, 0
+Opcode 8: equals
+
+Problem #6: orbit map
+Given a list of orbital data: a)b = b orbits a; a)b, b)c = b orbits a, c indirectly orbits b; total direct and indirect orbits are 3.
+Find: total number of direct and indirect orbits for the given orbital data
+
+Turn a)b b)c c)d b)e c)f into one or several trees; root of the tree is a, which orbits no one (0); level 1, b orbits only a (1); level 2, c orbits b and e orbits b, so (2 + 2); level 3, d orbits c and f orbits c, so (3 + 3)
+To construct this tree, create an object called trees. Traverse through the orbital data. For each pair, if the item[0] is found in an existing tree's leaf in the list, add item[1] as a child. If item[1] is found in an existing tree's root, then add the root as a child to item[0]. If both of the above were true, then combine the two trees into one. Else, create a new tree with root = item[0] and child = item[1].
+Once all the trees are constructed (should only be 1), traverse the trees and add each node's level to get the "total number of direct and indirect orbits".
+
+Trees: points to an array of tree objects
+Tree: is a root node with undefined parent and 1+ child nodes and a node name
+child node: 1 parent node and 0+ child nodes and a node name
+
+7a
+Given: an amplifier can run an intcode program and take one input; an intcode program that can take input 0-4; there are a total of 5 amplifiers (A, B, C, D, E); A's output program is taken as the input intcode program for B, B's output is taken as C's input, so on an so forth; each amplifier can also take a numerical input 0-4;
+Find: Find numerical inputs for the 5 amplifiers that can give the largest output (5^5*5 = 15625 times)
+
+Brute force: Run program through A with 5 different inputs, then run the output program through B with 5 different inputs; etc; until the final output of E. compare all of the outputs to get the maximum output
+
+More performant? Run inputs 0-4 through program A, remember all the program outputs 0-4 (ran 5 times); run 0-4 through these programs again (ran 5*5 times) and remember all the program outputs 0-4; etc. 
+
+Wait, add two more givens:
+1. an amp takes two inputs, first the input code and second the output from the previous amp; ampA's second input is 0.
+2. there are input codes 0-4 and each number can only be used once per amp. 0,1,1,2,3 is invalid because 1 is used twice
+
+Solution:
+1. add the ability to take two different inputs to the intcode program
+2. run and store the intcode program multiple times by feeding it a set of input codes
+3. an input code selector, so that the five codes are unique: a set of five codes, first select one, then four are left, then keep selecting until all are left
+4. Run all available codes through the program and get the largest output
+
+7B 
+Given: 
+1. A feedback loop is created from ampE back to ampA
+2. initial signal (S) into ampA is 0, all subsequent signals are from ampE
+3. the phase setting is the first input and read only once, all subsequent program inputs come from previous amp's outputs. 
+4. the phase settings are [5-9]
+5. e.g.: ampA reads the phase setting and inital input of 0, after it runs awhile, it may ask for the next input, which it needs to wait from ampE; so it would save its state and return its current output (so ampB can run), until it's its turn to run again with output from ampE.
+Find: the highest thruster signal the feedback loop can generate
+
+1. an amp can save its state: a. read phase setting b. current instruction position c. current program d. current output e. finished execution
+2. an amp should return when it reaches an input instruction and realizes it has already read the input
+3. once a program truly finishes, it should return its final output (thruster signal) and set finished execution state to true
+4. a check that keeps running the amps in a loop until all the amps are finished, it then sends the last output to the thrusters
+
+8. 
+enter BIOS password in Mars rover
+picture sent in a special Space Image Format
+a series of digits that each represent the color of a single pixel
+fill rows from left-to-right, top-to-bottom
+a series of identically-sized layers
+e.g. an image 3x2, an image data of 123456789012 (12 digits) can fills two layers
+
+8a.
+Given: 
+a. a 25w x 6h image
+b. a series of digits
+
+Find:
+the layer that contains the fewest 0 digits, then multiply count of digits with values = 1 multiplied by the count of digits with values = 2.
+
+1. Read in the puzzle input
+2. Separate the input into layers of 25x6 (string array)
+3. For each layer, count the number of 0s (regX?)
+4. Find the layer with the least number of 0s
+5. Count the number of 1s on that layer, then the number of 2s
+6. Multiply the two numbers and return as output
+
+8b.
+Given:
+1. Image is rendered by stacking the layers
+2. 1 = black, 0 = white, 2 = transparent
+3. layer 0 is in front and layer x is in back
+4. if front layer has transparent, layer 2 has black and layer 3 has white, then that pixel will show black
+Find:
+After decoding your input, what's your final image? output in a string form
+
+1. Read in the puzzle input
+2. separate the input into layers of 25 x 6 (string array)
+3. for each position, starting from layer 1, keep looking until the pixel is no longer transparent (2), take that pixel and add it to the final image string
+4. create a display html so the final image is 25 x 6 and set background of 1s to black
+5. see the final output image and get the five letter password
+
+9. complete the intcode computer
+1. parameter mode 2: relative mode, parameter is interpreted as a position; however, the position is not relative to 0, but is relative to the relative base
+2. Opcode 9: relative base offset, 1 parameter, the relative base increases or decreases by the value of the parameter; subject to parameter modes
+3. The program needs to be able to access a much larger memory space than the initial program provides. (expand the array if access location is >= array.length) It only needs to allow access towards the positive address
+4. The computer should have support for large numbers?
+5. The BOOST program will ask for a single input (1)
+6. While running, it will output opcodes that are functioning incorrectly
+7. Once the program finishes, it will output a BOOST keycode
+Find: the final BOOST keycode
+
+x 1. Add parameter mode 2
+X 2. Add opcode 9
+X 3. Add range access check and increase memory accordingly and initialize to value 0
+4. Not sure about the large numbers, will run the program and see what it means (didn't need to do anything)
+5. Run the program on input and get the opcode
+
+10. Monitoring station
+1. puzzle input: a map of all of the asteroids
+2. empty position: . asteroid: #
+3. top/left corner is 0,0; to the right 1, 0; to the south 0, 1
+4. which asteroid is the best place to build a new monitoring station
+5. a station can detect any asteroid to which it has direct line of sight (at any angle)
+6. the best location is the asteroid that can detect the largest number of other asteroids
+Find: the best location for a new monitoring station. How many other asteroids can be detected from that location?
+
+1. Read file input and create an array of arrays of chars
+2. translate that into an array of arrays of asteroid coordinates
+3. ALGORITHM to visible asteroids for each asteroid
+4. find the asteroid coordinate with the largest number of visible asteroids, output the asteroids
+
+Visible coordinates: all surrounding, in every angle
+Simplify the problem: only immediate surrounding
+
+setAllVisible(asteroids)
+take a list of asteroids, start from self (0) and targets (1 -> length - 1). call calculateVisible(self, targets), get a hashtable of what self can see. Then move the needle up 1, so self (1) and targets (2 -> length - 1), keep going until self == length - 2.
+
+calculateVisible(self, targets)
+take an asteroid (self) and a list of the rest of the asteroids (targets)
+Pick a target that's not been checked
+draw a line from self to an unchecked target, call getAsteroidsInLine(self, target, targets). 
+Take the closest target as a visible for self: 
+Create a hash table with key as self and target as value, and also target as self and self as value.
+Mark all targets in returned as checked. 
+Once all targets are checked for a self, wipe clean the checked and move onto the next target.
+
+Am I repeating anything? when checking line of sight, targets in a straight line can be visible to one another...
+
+O(n!)
+getAsteroidsInLine(start, end)
+Algorithm to draw a line and find all of the asteroids on the line, sort them from closest to start to furthest to start, return the list of indexes 
+
+10b Monitoring station is built but there are too many asteroids, they will do a complete vaporization by a giant laser.
+1. Laser starts by pointing up (north) and always rotate clockwise
+2. Laser can destroy the first asteroid it sees in a line
+Find. The 200th asteroid to be vaporized, input the asteroid's x * 100 + y.
+
+Thoughts
+* when figuring out whether two asteroids (self, target) can see each other, a line is drawn from self to target, then all intercepted asteroids are calculated, only the closest one is added as a visible and the rest gets dropped. Should I use that data by keeping all intercepted, so instead of add one visible, add a ray self, visible, intercept 1, 2, etc, target?
+Yes, I can. and since I find intercepts using slope only, even intercepts past the target will be included. Okay, let me try that
+OKAY: so when self draws a ray, all intercepts on that line is added as a ray. Since I use a slope and not check begining to end, self doesn't has to be the origin of the ray, it can be in the middle. Except it doesn't happen in my code, why? Because the way I read in the asteroids are from the (0,0), moving to the right (x increases), then next row (y increases). Then when I calculate self's intercepts on a ray, i only look at nodes that are indexed after self (x and y are both > than self). This is a great way to figure out visibles, because I only need to know what's closest to self, but not for rays, because I don't know what's to the north or west (x and y <= to self). So I shouldn't reuse this data. O wait, the origin would be self, if target is in the other direction, then slope would be negative. 
+
+An easier way is to figure out all the rays to a single self (should be o(n^2)), then sort the rays by north (-/0), rotating clockwise (north east = -1; east = 0/+; south east = 1; south = +/0). SLOPE DOESN'T WORK. Can I calculate angle? vector 1 is north, so (self.x, y < self.y)
+tan(angle) = opposite (target.x - self.x)/adjacent (target.y - self.y) 
+
+11 a.
+* Registration identifier; emergency hull painting robot; Intcode program to power the painting robot to paint the registration identifier
+* build a painting robot
+* Move around on the grid of square panels on the side of the ship
+* detect the color of the current panel is is on
+* paint the current panel black or white 
+* all of the panels of the ships are colored black
+* Intcode program is the of the robot
+* Its inputs are the eyes of the robot
+* 0 if the robot is on a black panel
+* 1 if the robot is on a white panel
+* Intcode program will out two values
+* 1st color to paint the panel: 0 = black; 1 = white
+* 2nd direction the robot should turn: 0 = Left 90; 1 = right 90.
+* After turning, the robot moves forward 1 panel.
+* Beginning direction of the robot is NORTH
+Find: Build the paint robot
+
+Given: the Intcode program, your robot and the side of your ship (we don't know the size of the board, but we do know the whole board is black = 0)
+Find: 
+find the number of panels it paints at least once with a given input
+
+Solution:
+macro story =>
+*a paint robot is given an input program, a board and a starting position (test program runs on a virtual board and an assumed starting position)
+*it starts at a position and faces north
+*it reads an input (color of the current panel)
+*it sends the input to the program
+*the program outputs a color to paint
+*it paints its current position 
+*it turns to a direction
+	*if it turns left, it will face west; if it turns right, it will face east
+*it moves a step 
+*read another input, etc
+*continue until the program finishes?
+
+On a test board, I can just create a hash of positions. Unknown key means robot has not been there and the input should be black (0), send the input to the program, wait for the output, then update value of the location to output value. Known key means the robot has already been there, get the current color as input, wait for the output, then update value of the location.
+
+Robot movement depends on three values current position (an initial position, for testing, start at 0,0), current direction (the initial direction is north), and turn (output of the program gives turn left/right). turn changes current direction (north east south west, left moves direction counter clockwise and right moves direction clockwise). robot then takes a step, the current position is updated (north step y++, east step x++, south step y-- and west step x--).
+
+Final value is the total # of keys on the board
+
+11b
+*On the actual run, the robot needs to start on a white panel first
+*the robot paints an 8 capital letter registration id
+Find: What's this 8 capital letter registration id?
+
+1. The main program should know the board (ship surface) that the robot paints on, not the robot itself
+2. a board class that when getValue will expand the board and return the default color code black. 
+3. initial board starts with a single cell with color white and default location of [0,0] (this location is given by the robot). 
+4. then the board will be updated by the robot with new color and location (setValue, {x, y, color})
+
+Problem 12a
+1. track the four moons Io, Europa, Ganymede and Callisto around Jupiter
+2. calculate the position of each moon
+3. simulate their motion so you can avoid them
+4. 3-d position (x, y, z) and a 3-d velocity for each moon (x, y, z).
+5. inital position of each moon is given and initial velocity is 0
+6. time steps; per time step 1) apply gravity to update velocities 2) after velocities are updated, update the position 3) time step progresses by one
+7 To apply gravity, consider every pair of moons (4)
+On each axis (x, y, z), the velocity of each moon changes by exactly +1/-1 to pull the moons together.
+8. i.e. axis x, Io (3) and Europa (5). Io's x changes by +1 and Europa's x changes by -1. if both have the same x, then no change
+9. new position = old position + velocity
+10. a moon has a position and a velocity
+11. a position/velocity is a 3-d coordinate {x, y, z}
+12. a set of moons is a System containing an array of moons and a step count
+13.
+Total energy of a system = total energies of all the moons
+Total energy of a moon = potential energy * kinetic energy
+Potential energy = sum of the absolute values of the position coordinates
+Kinetic energy = sum of the absolute values of its velocity coordinates
+What's the total energy in the system after simulating the moons given in your scan for 1000 steps?
+14. a system can take a step, a set of steps and return the system's total energy
+
+Problem 12b
+1. determine the number of steps it takes for positions and velocities of the moons' matches a previous point in time
+
+* need to record all the previous states of the moons
+* System class needs to have a history of all the moons states; 
+* This history updates with every step
+* This is pretty slow, is there a way to predict the re-accurance of a state?
+
+13 Care package
+*Space Mail Indicator Light, a care package
+*New game, build your own arcade cabinet
+*Intcode software
+*Primitive screen: draw square tiles on a grid with output instructions
+*every three output instructions specify the x position (distance from left), y position (distance from the top) and tile id
+*tile id:
+	* 0 = empty
+	* 1 = wall (indestructible barrier)
+	* 2 = block (can be broken by the ball)
+	* 3 = horizontal paddle (indestructible)
+	* 4 = ball (moves diagonally and bounces off objects)
+*Find: number of block (2) tiles that are on the screen when the game exits
+
+Thoughts:
+* mod program: no inputs
+* Program should produce an array of outputs (x, y, tile id) and a final dimension (min x = 0, min y = 0; max x, and max y)
+* draw the final set of array on the screen via a html table
+
+13b play the game
+1. set address 0 to 2; same board data comes out
+2. set input to 0 for now; board outputs each movement of the game
+* need to re-display the board after each movement
+* need to check the output to see which 3 outputs contain the score (should the board handle that? nah, check the coordinate and if [-1, 0] then third is the score
+* need to calculate where to move the paddle
+
+Thoughts:
+* moving the paddle just based on the location of the trajectory of the ball is insufficient.
+* when the ball hits the corner of the paddle (|ballX - paddleX| = 1), the ball bounces up the way it comes down
+* when the ball hits the middle of the paddle (|ballX - paddleX| = 1), the ball bounces up the opposite (mirror) way it comes down
+* when the ball hits a block, it destroys it and then the ball bounces back down 
+* the paddle logic needs to know where to go to catch the ball and it has two choices, let the ball hit the middle or the corner, choosing which choice depends on whether the paddle can hit a block and whether when the ball comes down the paddle can actually catch it
+* also at the end of the game, when only a few blocks are left, the logic may need to find the right angle to hit those blocks
+* the ball would hit the block/paddle if ball's slope is equal to block/paddle's slope at y and y+1 (block) and y-1 (paddle)
+* the game beater has input choices for every bounce of the ball, this bounce will be > total number of blocks
+* which one should I pick depends on 1st when the ball makes a full turn, can the paddle move enough spaces (x horizontally) to catch it? 2nd, can the choice clear the board? I think this I don't have to consider this yet.
+
+In conclusion, the GameBeater's logic should be something like:
+1. get the inital everything locations, and then the movement of the ball
+2. for every turn, check what block the ball will hit and when it comes down, where ballX will be at paddleY and paddleY-1 location. Check if paddle can catch the ball at either ballX locations and produce input accordingly (for example, if it takes 5-6 steps to be able to catch ballX at ballY location, and it takes 7 steps for ball to reach ballY, then send 5x inputs of 1s and 2x inputs of 0s.
+3. total steps for ball to go from BallRelease(paddleY-1) to BallBounce(blockY+1) is (BallRelease - BallBounce) * 2; y span = max number of steps that paddle can move on the x coordinate
+4. the x span up = (BallBounceX - BallReleaseX) = (BallBounceY - BallReleaseY)/slope of up trip
+total x span = xSpanUp * 2 if slope of the down trip is negative of the up trip OR 0 if the two slopes are the same 
+5. totalXSpan = min number of steps that paddle needs to move to catch the ball
+6. If totalXSpan > totalYSpan of the ball then there is no way the paddle can catch the ball
+7. Another complication is that on the way down the ball can also hit a block... so instead of a simple trip of up/down, it can be leave the paddle, ball can hit block1, wall1, block2, block3, etc become coming all the way down. so instead of up/down, we should calculate trajectory of the ball after hitting any item. 
+* after the ball hits the paddle, start keeping track of 1. total number of y steps the ball has travelled 2. slope of the ball 3. direction of the ball 4. check what it hits next
+* if ball hits a block, block is removed from the list, calculate trajectory again
+* if ball hits a wall, calculate trajectory
+* if ball hits nothing, calculate how many steps from where paddle is to how many steps paddle needs to move; check max steps paddle can move (sum of all Y steps the ball took after ball bounced from the paddle previously), fill the input array with that many 1s and the rest 0s
+* all objects are location and type
+* the ball can only hit the top of the paddle (so on impact, ballY is always = paddleY - 1); ballX can be paddleX or paddleX - 1 if ball direction is southEast or paddleX + 1 if ball direction is southWest.
+
+So in terms of directions, only north/south is no good. I need to consider north/south/east/west/NE/NW/SE/SW all eight directions
+* this is not true for hitting a block/wall, all four directions are possible north/east/south/west.
+
+14 Space Stoichiometry
+*low fuel indicator, raw material, nanofactory, make fuel
+*list of reactions, input chemicals (puzzle input); every reaction turns some input chemicals to some output chemical; all are 1 => 1, except ORE which is an input and never an output
+* how much ORE do you need to produce one unit of fuel?
+* 1 A, 2 B, 3 C => 2 D
+
+GIVEN: list of reactions
+FIND: the minimum amount of ORE required to produce 1 FUEL
+
+1. How to convert input text into a useful programming structure?
+* /n list of [reactions (string)]
+* => object {ingredients: (string), product: (string)}
+* , [ingredient]
+* space {quantity: (int), name: (string)}
+* Is the list useful? yes, but I can't easily tell the relationship between ORE and fuel
+2. What's a structure that gives a good representation of ORE to fuel?
+*A tree? Root node is 1 FUEL, its children are the ingredients. keep adding until the leaves are all OREs or ingredients not produced by OREs
+*an object in the list of reactions can be used multiple times or 0 times?
+3. I can calculate the total OREs needed by counting the tree leaves where name === ORE and add up quantities total += quantity
+* THIS IS WRONG! If a chemical repeats, then many extra OREs are used using this way of solving. A tree is not the right solution
+
+How about continuously expanding the formulas until the base ingredient? To get the minimum, we need to aggregate repeating ingredients in the formula. And they may not appear in the same level. 
+
+
+1 FUEL = 2 AB + 3 BC + 4 CA 
+1 FUEL = 2 (3A + 4B) + 3 (5B + 7C) + 4 (4C + 1A) EXPAND
+1 FUEL = 6A + 8B + 15B + 21C + 16C + 4A FOREACH
+1 FUEL = 10A + 23B + 37C REDUCE
+1 FUEL = 10A (9 ORE/2A ) + 23B(8ORE/3B ) + 37C (7ORE/5C ) EXPAND 
+1 FUEL = 45 ORE + 64 ORE + 56 ORE REDUCE
+1 FUEL = 165 OREs (FINAL because no terms can expand)
+
+This one doesn't account for if A B C are expanded at different levels can I do backwards
+"ORE", 1 find result = {9 ORE  => 2 A}, {8 ORE => 3B}, {7 ORE => 5C} find all formulas with reactions containing A, B and C, 10A/2A * 9 ORE = 45 ORE
+"A", 2 results = [{3A => 1AB}, {1A => 1CA}], find all formulas with reactions containing AB and CA, return s = 2AB/1AB*3A + ? = 10A; r = 0
+"AB", 1 results = [{2AB => 1 FUEL}], find all formulas with reactions containing FUEL; return s = 1FUEL/1FUEL * 2AB = 2AB = sum(ceiling(s/result.product.quantity)*result.chemical.quantity, r = 0
+"FUEL", 1 results = [] return s = 1, r = 0
+
+chemical "B", 3; formulas = formula:{reaction:5B => product:1 BC} {4B => 1AB}; s = 3BC/1BC * 5B = 15B r += 15B%3B = 0
+chemical "BC", 1; formulas = formula:{3BC => 1FUEL} s += 1 FUEL/1FUEL * 3 BC = 3 BC; r += 3BC%1BC = 0
+chemical "FUEL", 1; return s = 1 FUEL, r = 0 FUEL
+
+find(chemical, list)
+var sum = 0;
+results = find name in list's reactions
+if(results.length === 0) return chemical.quantity;
+//{reactions:..., product:...}
+foreach result of results
+	multiplier = find (result.product, list)
+	multiplier = ceiling(multiplier/result.product.quantity)*chemical.quantity
+	sum += mulpliplier;
+
+14B 
+X 1. Find out the quantity needed/remaining of each chemical for a fuel
+X 2. Find out with the resources given whether a given product can be made
+*this is a recursive ask, top = fuel and bottom = ore, bottom is found when no formulas are found to make the product; it doesn't need to go to the bottom to see if a product can be made, it only needs to look at all the reactions needed to make the product and whether resources have enough of those chemicals; if enough, then remove those chemicals' quantities from resources & if extra are left (cause' you may need 8 but only multiple of 5s are produced, so 2 is left); if not, try making the resources (call recursive function), the output needs to tell me, if enough were made (isSuccess). If isSuccess, then do the same as if enough. If failed, then do nothing and just return isSuccess = false;
+To resummarize in pseudo code:
+//product: {name:chemical, quantity:needed}
+makeProductFromResources(product, resources){
+let isSuccess = false;
+let formula = formulas.find(element.product.name === product.name)
+if(formula === undefined? or {}) return isSuccess;
+let productsAvailable = resources[product.name].quantity;
+if(productsAvailable === undefined) 
+	productsAvailable = 0;
+let setsOfProducts = Math.ceil(product.quantity/formula.product.quantity);
+let totalProductsNeeded = setsOfProducts * formula.product.quantity;
+if(productsAvailable < product.quantity)
+{
+	setOfProducts = (product.quantity - productsAvailable)/formula.product;
+	totalProductsNeeded = totalProductsNeeded - p
+	makeProductFromResources(
+}
+}
+
+15A Oxygen System
+* Rupture in oxygen tank two
+* One repair droid to fix the oxygen tank
+* Intcode program to control the droid remotely
+* Input: movement command - N 1 S2 W3 E4
+* Output: droid status 
+	0: hit wall, position has not changed
+	1: droid moved in the input direction successfully
+	2: droid moved successfully and it's at the oxygen system
+* Find: the fewest # of movement commands to the oxygen system
+
+Thoughts:
+*I can try hook up my keyboard directions to input directions
+*I can display a map via the Board class. Try an input and figure out if the robot can move or has hit a wall
+*Once I find the oxygen system, i can eyeball the fewest # of movement commands
+*This is similar to problem 13
+
+Solve:
+X1. hook up arrow keys to game inputs
+X2. try running program with input
+X3. check program output: processOutput
+* 0, hit wall, robot position doesn't change, wall position occurs in direction of robot's attempt (getPosition(current, direction)), produce correct inputs to the board 
+* 1, successful move, robot position updates in direction of robot's attempt
+* 2, successful move, robot is at final, getPosition(current, direction)
+X4. The differnt items are Space, Wall, Station, Droid, Path
+X5. Update the board with new items at new positions
+X6. Display the board
+X7. Instead of keyboard input, I shall create an automatic driver.
+15B.
+X1. map the whole area. when does the robot know it finished the whole map? when every non-wall space has been travelled at least once in the existing map after finding the station
+X2. it doesn't matter where the start is now, the goal is to figure the whole map. so driver keeps producing input until every non-wall block has been visited once
+X3. the driver still needs to remember where the station is, because it is how the oxygen starts to fill the house
+X4. Once station is found and whole map is drawn. Then start changing existing station into Oxygen, and every step (1 minute), Oxygen expands by 1 in every available direction, stop expanding until all non-wall blocks are now filled with oxygen. 
+
+Day 16 Flawed Frequency Transmission
+* FFT algorithm can clean up signal quality 
+* input: a list of single digit numbers
+* Repeated phases: per phase, a new list (output) is constructed with the same length as the input list. output is then used as the input for the next phase.
+* i.e. input 9, 8, 7, 6, 5 pattern 1, 2, 3 
+result = 9*1 + 8*2 + 7*3 + 6*1 + 5*2 = 38, 8 is kept as output
+*output uses the same input array; 
+*basic repeating pattern is 0, 1, 0, -1
+*actual pattern depends on the element position in the output list, then shifted left once i.e. a repeating pattern for position 3 would be: 0, 1, 1, 0, 0, -1, -1...
+FIND: after 100 phases of FFT, what are the first eight digits in the final output list?
+
+Thoughts: feel simple and straight forward
+1. Read the input
+2. Place in an input array separated by single digits
+X 3. Set the basic pattern to be a number array: [0, 1, 0, -1]
+ 4. class FFT which has a function that returns the pattern array for output position: getPattern(index), this can be stored, so it's not calculated every time
+5. class FFT contains member this.input and a function getOutput(phase); 
+6. class FFT should remember previous outputs for each phase
+7. Can I keep input and output to just be a number? maybe not, since it can be pretty big, an array of single digit numbers?
+
+16B
+*repeat the input 10000 times
+* first seven digits of the initial input = message offset = the location of the eight-digit message in the final output list = the number of digits to skip 
+* por ejemplo, output = 98765432109876543210, message offset = 7, then the eight-digit message will be 21098765
+* 100 phases
+* eight-digit message
+
+Thoughts:
+1. the description about the message offset is confusing. does it apply to every input read of phase production? or does it only apply to the final output? I can try both and see which one matches the output of the examples given.
+2. repeating the input 10000 times strains the storage and calculation of the current system. it has to be optimized. For each phase, each element of the input produces input.length's calculations, so (650 * 10000)^2. 
+	*Can I calculate each input  element separately? for all phases? no, they're not independent of one another
+	*Since there are only three unique patterns and 10 unique single digits, can I store this into an object list like:
+{0: {0:0, 1: 0, -1: 0}, 1:{0:0, 1: 1, -1: -1}... 9} etc? let's try that
+
+To solve:
+1. the basic pattern basically removes half of the inputs 
+0 inputRepeat: 0, 1, 0, -1
+0 - 0, 2 - 2
+begin1 0*1, begin2 1*1, begin3 2*1, begin4 3*1
+1 inputRepeat: 0, 0, 1, 1, 0, 0, -1, -1
+0-1 and 4-5
+begin1 0 * 2, begin2 1 * 2, begin3 2 * 2, begin4 3 * 2
+
+17 Set and Forget
+* Solar flare, activates electromagnetic shied, turns off wi-fi for small robots, save them
+* wired cameras, vacuum robot
+* Intcode program (ASCII, input) gives access to the cameras the robot
+* output: current view of the scaffolds, gives an ASCII code
+	* #: a scaffold, path
+	* .: open space
+	* ^, v, <, or >: robot and the direction it is facing and it's on a scaffold
+	*X: robot fell off the scaffold
+* step 1: locate all scaffold intersections (more than two scaffolds in its vicinity in four directions)
+* step 2: calculate the intersections' alignment parameters = distance from top (y) * distance from left (x)
+* step 3: calculate the sum of all the alignment parameters (FIND)
+
+Thoughts:
+* Need to draw the full map by letting the robot run through all explorable areas
+X	* how to know when it completed exploring everything? there is no station to explore for, what's the goal post? unexplored, space and # a scaffold for a given area, maybe ensure no unexplored? No, because some unexplored spaces cannot be accessed > inital program outputs the whole map and the location of the robot
+X	* how about for every known # scaffold, all four directions are checked, explore further if there are still scaffolds with unexplored spaces? YES, i think this should work
+	* Instead of walls, there are spaces where the robot can fall off, can it reverse its direction and come back or that ends the exploration? NEED TO HOOK UP THE PROGRAM AND RUN THE ROBOT
+X * I can use the existing Machine, Robot and Board code. The exploration code needs to be changed a bit
+
+17B.
+* Make the vacuum robot visit every part of the scaffold at least once
+* input = direction the robot turns (L, R), steps taken before next turn + newline (10) + ASCII
+* This input can't be sent to the program directly but has to be encased in functions A B C
+* So R8, L4, L5, R8, L4, L6 can be put as A, B, A, C
+A = R8, L4; B = L5, C = L6
+* I'm not sure what the output looks like right now. I should just send in some input and check
+* OKAY sent in outputs like this: 1. Functions [A, B, C,... 10] 2. turn, steps for each function 3. continuous camera feed? [y, 10] got back a map with the robot falling off the scaffold (from ^ to X). 
+* I did not get back a number like how much dust did the robot collect
+* So basically I need to figure out a path to traverse every scaffold piece at least once, successfully separate this path traversal into 3 parts A, B and C. Feed them back to the machine, then update the program. 
+
+* I am not sure once I finish the traversal whether I need to send the robot back to where it started to get the amount of dust it collected...
+
+Day 18: 
+* Underground vault
+* Map of the tunnels (puzzle input)
+* cannot move diagonally
+* @ = the only entrance, your starting point
+* . = the open passages
+* # = stone walls
+* lower case letters = keys
+* upper case letters = doors
+* keys of a given letter open the door of the same letter (a opens A)
+* you need to collect all of the keys
+* How many steps is the shortest path that collects all of the keys?
+Thoughts:
+* The shortest path means you have to figure out, the best order to get the keys to open the doors, and the shortest paths for getting each and every keys and doors
+* A* is an algorithm for path finding
+* The starting point (or the robot) is @, I can use the existing Board and Driver classes to make up the map and set initial robot location. 
+* Robot = @; wall = #, path = .; these are the existing concepts
+* keys = lower case letters and doors = upper case letters are new concepts
+* keys open doors of the same letter, so once @ encounters a key, it needs to pick it up (add it to a list of keys) and replace the key location with a path (.)
+* doors are opened by keys, so once @ encounters a door, it needs to see if @ has a key for it. If @ has a key for it, then
+the key is used to open the door. Door's location is replaced by a path (.) and the key is no longer in the key list. Else, add door to a list of doors and its location needs to be remembered.
+* It's hard to solve for the shorted path. We can first implement the key and door concepts. The goal is to find all the doors and open all the keys. So the robot cannot stop until it has no more keys remaining and doors unopened. @ is in a maze but I'm not. I have the whole map to the maze. I can just preload all of the keys and doors' locations.
+* I have solved for a general random solution where all keys will eventually be picked up and the shorted path for that particular key order
+* however, to solve for the shortest path is much more complicated. I think I'll need to build a tree with every possible key order and the shortest paths between each two keys (i.e. steps starting at keyA and ending at keyB). Then from those paths choose the shortest path.
+* Currently I travel the least used path to get to different keys, however, to build the tree, for each start point (first is the location of droid), I need to find the shortest paths to all the keys I can reach from that start.

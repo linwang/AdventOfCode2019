@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent of Code Problem 10</Title>
+    </head>
+    <body>
+        <p id = "instruction">Select input file</p>
+        <input id = "inputFile" type = "file" onChange = "openFile()">
+        <p id = "outputValue">Output</p>
+        <script src = "common.js"></script>
+        <script>
+            function getMaxVisible(asteroids)
+            {
+                var vMax = 0, iMax = 0;
+                for(var i = 0; i < asteroids.length; i++)
+                {
+                    if(asteroids[i].visible.length > vMax)
+                    {
+                        vMax = asteroids[i].visible.length;
+                        iMax = i;
+                    }
+                }
+                return asteroids[iMax];
+            }
+            
+            class Cluster
+            {
+                constructor(map)
+                {
+                    this.asteroids = [];
+                    for(var y = 0; y < map.length; y ++)
+                    {
+                        for(var x = 0; x < map[y].length; x++)
+                        {
+                            if(map[y][x] == '#')
+                            {
+                                this.asteroids.push(new Asteroid(x, y, []));
+                            }
+                        }
+                    }
+                    this.setAllVisible();
+                    
+                }
+                setAllVisible()
+                {
+                    for(var i = 0; i < this.asteroids.length; i++)
+                    {
+                        this.asteroids[i].setVisible(this.asteroids, i + 1);
+                    }
+                }
+            }
+            class Asteroid
+            {
+                constructor(x, y, visible)
+                {
+                    this.x = x;
+                    this.y = y;
+                    this.visible = visible;
+                }
+                setVisible(asteroids, iStart)
+                {
+                    var target, intercepts;
+                    if(iStart == undefined) iStart = 0;
+                    asteroids.forEach(element => element.checked = false);
+                    for(var j = iStart; j < asteroids.length; j++)
+                    {
+                        target = asteroids[j];
+                        if(target.checked == false)//if I haven't checked this item already
+                        {
+                            intercepts = this.getIntecepts(target, asteroids, j + 1);//get all the asteroids that are on the line
+                            if(intercepts.length > 0)
+                            {
+                                if(intercepts[0].checked == false)
+                                {
+                                    this.visible.push(intercepts[0]);
+                                    intercepts[0].visible.push(self);
+                                }
+                                intercepts.forEach(element => element.checked = true);
+                            }
+                        }
+                    }
+                    for(var a of asteroids) delete a.checked;
+                }
+                getDistance(end)
+                {
+                    return Math.sqrt(Math.pow(end.y - this.y, 2) + Math.pow(end.x - this.x, 2));
+                }
+                getAngleToNorth(end)
+                {
+                    var xDelta = end.x - this.x;
+                    var yDelta = end.y - this.y;
+                    var angle = Math.atan(xDelta / yDelta)*180/Math.PI;
+                    //quadrant I
+                    if((xDelta >= 0) && (yDelta < 0))
+                        angle = angle * -1;
+                    //quadrant II
+                    else if((xDelta > 0) && (yDelta >= 0))
+                        angle = 180 - angle;
+                    //quadrant III
+                    else if((xDelta <= 0) && (yDelta >= 0))
+                        angle = 180 + angle * -1;
+                    //quadrant IV
+                    else if((xDelta < 0) && (yDelta < 0))
+                        angle = 360 - angle;
+                    else
+                        log.popErr("xDelta = " + xDelta + "; yDelta = " + yDelta);
+                    
+                        return angle;
+                }
+                getIntecepts(end, asteroids, iStart)
+                {
+                    var intercepts = [];
+                    if(iStart == undefined) iStart = 0;
+
+                    //add end point to intercepts list
+                    end.distance = this.getDistance(end);
+                    intercepts.push(end);
+
+                    //check through the asteroids list and see if other asteroids are on the line 
+                    //specified by beg and end points
+                    for(var i = iStart; i < asteroids.length; i++)
+                    {
+                        if(this.isIntercept(asteroids[i], end))
+                        { 
+                            asteroids[i].distance = this.getDistance(asteroids[i]);
+                            intercepts.push(asteroids[i]);
+                        }
+                    }
+                    //sort all of the intercepted asteroids by increasing distance to beginning
+                    intercepts.sort((a, b) => a.distance - b.distance);
+                    
+                    for(var a of asteroids) delete a.distance;
+                    return intercepts;
+                }
+                isIntercept(asteroid, end)
+                {
+                    var angleLine = this.getAngleToNorth(end);
+                    var angleAst =  this.getAngleToNorth(asteroid);
+                    return (angleLine === angleAst);
+                }
+            }
+            class Station extends Asteroid
+            {
+                constructor(asteroid)
+                {
+                    super(asteroid.x, asteroid.y, asteroid.visible.slice(0));
+                }
+                getDestructionList(asteroids)
+                {
+                    var rays = this.getRays(asteroids);
+                    var a, list = [];
+                    while(rays.length > 0)
+                    {
+                        for(var i = 0; i < rays.length; i++)
+                        {
+                            a = rays[i].shift();
+                            list.push(a);
+                            if(rays[i].length == 0)
+                            {
+                                rays.splice(i,1);
+                                i--;
+                            }
+                        }
+                    }
+                    log.logMe(list);
+                    return list;
+                }
+                getRays(asteroidsOri)
+                {
+                    var ray = [], i = 0;
+                    var rays = [], asteroids = asteroidsOri.slice(0);
+
+                    for(i = 0; i < asteroids.length; i++)
+                    {   
+                        if((asteroids[i].x === this.x) && (asteroids[i].y === this.y))
+                        {
+                            asteroids.splice(i, 1);
+                            i--;
+                        }
+                        else
+                        {
+                            asteroids[i].angle = this.getAngleToNorth(asteroids[i]);
+                            asteroids[i].distance = this.getDistance(asteroids[i]);
+                        }
+                    }
+                    asteroids.sort((a, b) => a.angle - b.angle);
+                    
+                    for(i = 0;  i < asteroids.length; i++)
+                    {
+                        if(ray.length == 0 || (asteroids[i].angle == ray[0].angle))
+                        {
+                            ray.push(asteroids[i]);
+                        }
+                        else
+                        {
+                            ray.sort((a, b) => a.distance - b.distance);
+                            rays.push(ray);
+                            ray = [asteroids[i]];
+                        }
+                        if(i === asteroids.length - 1)
+                            rays.push(ray);
+                    }
+                    log.logMe(rays);
+                return rays;
+                }
+                getAToDestroy(index, asteroids)
+                {
+                    var list = this.getDestructionList(asteroids);
+                    return list[index-1];
+                }
+            }
+            //opens an input file and output the first position 
+            function openFile()
+            {
+              var input = document.querySelector('input#inputFile');
+              if(input.files.length == 0) return;
+              var reader = new FileReader();
+              reader.onload = function()
+              {
+                var rawMap = reader.result.split('\r\n');
+                log.on = true;
+                log.logMe(rawMap);
+                var cluster = new Cluster(rawMap);
+                log.logMe(cluster.asteroids);
+                var station = new Station(getMaxVisible(cluster.asteroids));
+                var destroy = station.getAToDestroy(200, cluster.asteroids);
+                log.logMe(destroy);
+                document.getElementById("outputValue").innerHTML = 
+                    "location: [" + station.x + ", " + station.y + "] can see " + station.visible.length + " asteroids.";
+                document.getElementById("outputValue").innerHTML +=
+                    "Destroy: " + (destroy.x * 100 + destroy.y);
+              }
+              reader.readAsText(inputFile.files[0]);
+            }
+        </script>
+    </body>
+
+</html>

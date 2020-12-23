@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Advent of Code Problem 11</title>
+    </head>
+    <body>
+        <p>Select input file: </p>
+        <input id = "input" type = "file" onchange="openFile()">
+        <p>Output: </p>
+        <div id = "output"></div>
+        <script src = "common.js"></script>
+        <script>
+            
+            class Robot {    
+                constructor(program, initLocation, initDirection)
+                {
+                    if(program === undefined) throw "Need a program to run!";
+                    if(initLocation === undefined) initLocation = new Coordinate(0, 0);
+                    if(initDirection === undefined) initDirection = "north";
+
+                    this.program = program;
+                    this.location = initLocation;
+                    this.direction = initDirection;
+                    this.run = processIntCodeProgram;
+                }
+                static getColorCode(colorStr)
+                {
+                    switch(colorStr.toLowerCase())
+                    {
+                        case "black":
+                            return 0;
+                            break;
+                        case "white":
+                            return 1;
+                            break;
+                        default:
+                            throw "unknown color " + colorStr;
+                    }
+                }
+                static getColor(colorCode)
+                {
+                    var color = ["black", "white"];
+                    if(colorCode >= color.length) throw "unknow colorCode " + colorCode;
+
+                    return color[colorCode];
+                }
+                static getNextDirection(curDirection, iTurn)
+                {
+                    var directions = ["north", "east", "south", "west"];
+                    var turns = ["left", "right"];
+
+                    var iDirection = directions.indexOf(curDirection.toLowerCase());
+
+                    if(turns[iTurn] === "left") iDirection--;
+                    else if(turns[iTurn] === "right") iDirection++;
+                    else throw "unknown turn code!";
+                    
+                    if(iDirection === -1) iDirection = 3;
+                    if(iDirection === 4 ) iDirection = 0;
+
+                    return directions[iDirection];
+                }
+                testRun(dColorCode)
+                {
+                    var board = new Board(dColorCode, this.location, dColorCode);
+                    this.paint(board);
+                    return board;
+                }
+                paint(board)
+                {
+                    var output = {}, input;
+                    do {
+                        input = board.getValue(this.location);
+                        if(input === undefined) 
+                            throw "no color";
+                        output = this.run(this.program, input, undefined, output.pos, output.relBase);
+                        if(output === undefined) break;
+                        board.setValue(this.location, output.outputs[0]);
+                        this.direction = Robot.getNextDirection(this.direction, output.outputs[1]);
+                        this.move();
+                    } while(!output.isFinished);
+                    log.logMe(board.list);
+                }
+                move()
+                {
+                    var moves = {north:{x:0, y:-1}, east:{x:1, y:0}, 
+                                        south:{x:0, y:1}, west:{x:-1, y:0}};
+                    var move = moves[this.direction];
+                    this.location.x = this.location.x + move.x;
+                    this.location.y = this.location.y + move.y;
+                }
+            }
+            class Board {
+                constructor(colorCode, location, defaultColorCode)
+                {
+                    this.list = {};
+                    this.list[location.toString()] = colorCode;
+                    this.defaultColorCode = defaultColorCode;
+                    this.min = new Coordinate(location.x, location.y);
+                    this.max = new Coordinate(location.x, location.y);
+                }
+                getValue(location)
+                {
+                    var colorCode = this.list[location.toString()];
+                    if(colorCode === undefined)
+                        colorCode = this.defaultColorCode;
+                    return colorCode;
+                }
+                setValue(location, colorCode)
+                {
+                    this.list[location.toString()] = colorCode;
+                    if(location.x > this.max.x)
+                    {
+                        this.max.x = location.x;
+                    }
+                    if(location.x < this.min.x)
+                    {
+                        this.min.x = location.x;
+                    }
+                    if(location.y > this.max.y)
+                    {
+                        this.max.y = location.y;
+                    }
+                    if(location.y < this.min.y)
+                    {
+                        this.min.y = location.y;
+                    }
+                }
+                draw(colorDecoder)
+                {
+                    var html = "<table>";
+                    var color = "", colorCode;
+                    for(var y = this.min.y; y <= this.max.y; y++)
+                    {
+                        html += "<tr>";
+                        for(var x = this.min.x; x <= this.max.x; x++)
+                        {
+                            colorCode = this.getValue(new Coordinate(x, y));
+                            color = colorDecoder(colorCode);
+                            html += "<td bgcolor = " + color + ">" + colorCode + "</td>";
+                        }
+                        html += "</tr>";
+                    }
+                    html += "</table>";
+
+                    return html;
+                }
+            }
+            function openFile()
+            {
+                log.on = false;
+                var file = document.querySelector("input#input");
+                if(file.files.length === 0) return;
+                var reader = new FileReader();
+                reader.onload = function()
+                {
+                    var program = reader.result.split(',').map(function(item)
+                                { return parseInt(item)});
+                    var robot = new Robot(program);
+                    var board = new Board(Robot.getColorCode("white"), robot.location, Robot.getColorCode("black"));
+                    //board = robot.testRun(Robot.getColorCode("black"));
+                    robot.paint(board);
+                    console.log(board.draw(Robot.getColor));
+                    document.getElementById("output").innerHTML = board.draw(Robot.getColor);
+                }
+                reader.readAsText(file.files[0]);
+            }
+        </script>
+    </body>
+</html>

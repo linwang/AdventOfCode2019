@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Problem 14</title>
+</head>
+
+<body>
+    <input type="file" id="input" onchange="openFile()">
+    <p id="output"></p>
+    <script src="common.js"></script>
+    <script>
+        function createTree(product, list) {
+            //create a new node by finding on the product list
+            //if found, then create a new node and for each child, call create tree add return onto tree
+            //if not found, return
+            let formula = list.find(element => element.product.name === product.name);
+            if (formula !== undefined) {
+                let multiplier = Math.ceil(product.quantity / formula.product.quantity);
+                formula.product.quantity *= multiplier;
+                let node = new Node(formula.product);
+                let child;
+                for (let chemsPerSetOfProducts of formula.reactions) {
+                    chemsPerSetOfProducts.quantity *= multiplier;
+                    child = createTree(chemsPerSetOfProducts, list);
+                    if (child !== undefined)
+                        node.addChild(child);
+                }
+                return node;
+            }
+            else {
+                return new Node(product);
+            }
+
+        }
+        class Product {
+            constructor(name, quantity) {
+                this.name = name;
+                this.quantity = parseInt(quantity);
+            }
+            toString() {
+                return "{name: " + this.name + ", quantity: " + this.quantity + "}";
+            }
+        }
+        class Fuel {
+            constructor(formulas)
+            {
+                this.formulas = formulas.slice(0);
+                //builds a list of chemicals needed/remain to build a fuel
+                //starts from chemical and ends at fuel
+                function getListChemsNeededToMakeFuel(chemical, list) {
+                    let setsOfProducts, listOfProductsForFuel, chemsPerSetOfProducts;
+                    let totalChemicalsNeeded = 0, output = {}, unusedChemicals = 0;
+                    let formulas = list.filter(element => element.reactions.find(element => element.name === chemical.name));
+                    if (formulas.length === 0) 
+                    {
+                        output[chemical.name] = { quantity: chemical.quantity, remainder: 0 };
+                        return output;
+                    }
+                    for (let formula of formulas) 
+                    {
+                        listOfProductsForFuel = getListChemsNeededToMakeFuel(formula.product, list);
+                        setsOfProducts = listOfProductsForFuel[formula.product.name].quantity / formula.product.quantity;
+
+                        chemsPerSetOfProducts = formula.reactions.find(element => element.name === chemical.name);
+                        totalChemicalsNeeded += setsOfProducts * chemsPerSetOfProducts.quantity;    
+                        for (let key in listOfProductsForFuel) 
+                        {
+                            output[key] = listOfProductsForFuel[key];
+                        }
+                    }
+
+                    unusedChemicals = Math.ceil(totalChemicalsNeeded/chemical.quantity) * chemical.quantity - totalChemicalsNeeded;
+                    if(output[chemical.name] === undefined)
+                        output[chemical.name] = {};
+                    output[chemical.name].remainder = unusedChemicals;
+                    output[chemical.name].quantity = Math.ceil(totalChemicalsNeeded/chemical.quantity) * chemical.quantity;
+
+                    return output;
+                }
+                this.chemicalsHash = getListChemsNeededToMakeFuel(new Product("ORE", 1), this.formulas);
+            }
+            //once the required # of products are made, the newly made count is added to resources
+            //all ingredients used to make the product are removed from resources
+            makeProductFromResources(product, resources)
+            {
+                let formula = this.formulas.find(element => element.product.name === product.name);
+                if(formula === undefined)
+                    return false;
+
+                let productsPerSet = formula.product.quantity;
+                let productsAvailable = resources[product.name];
+                if(productsAvailable === undefined) 
+                    productsAvailable = 0;
+                let productsNeeded = product.quantity;
+                if(productsAvailable < product.quantity)
+                {
+                    let setsOfProductsNeeded = Math.ceil((product.quantity - productsAvailable)/productsPerSet);
+                    let extraProductsToProduce = setsOfProductsNeeded * productsPerSet;
+                    let totalChemicalsNeeded, totalChemicalsToMake, ingredient, isSuccess, chemical;
+                    for(chemical of formula.reactions)
+                    {
+                        totalChemicalsNeeded = chemical.quantity * setsOfProductsNeeded;
+                        if(resources[chemical.name] === undefined)
+                            resources[chemical.name] = 0;
+                        if(totalChemicalsNeeded > resources[chemical.name])
+                        {
+                            totalChemicalsToMake = totalChemicalsNeeded - resources[chemical.name];
+                            ingredient = new Product(chemical.name, totalChemicalsToMake);
+                            isSuccess = this.makeProductFromResources(ingredient, resources);
+                            if(!isSuccess) 
+                                return isSuccess;
+                        }
+                        resources[chemical.name] -= totalChemicalsNeeded;
+                    }
+                    resources[product.name] += extraProductsToProduce;    
+                }
+                return true;
+            }
+            getFuelsFrom(numOres) 
+            {
+                let oresNeeded = this.chemicalsHash["ORE"].quantity;
+                let minOresNeeded = oresNeeded - this.chemicalsHash["ORE"].remainder;
+                let minFuels = Math.floor(numOres/oresNeeded);
+                let maxFuels = numOres;
+                let resources;
+                let fuels = {name:"FUEL", quantity:0};
+                let quantityToMake = minFuels;
+                while(true)
+                {   
+                    if(maxFuels - minFuels < 2)
+                        break;
+
+                    quantityToMake = minFuels + Math.floor((maxFuels - minFuels)/2);
+                    fuels.quantity = quantityToMake;
+                    resources = {ORE:numOres};
+                    if(this.makeProductFromResources(fuels, resources))
+                        minFuels = quantityToMake;
+                    else
+                        maxFuels = quantityToMake;
+                }
+                return quantityToMake;
+            }
+        }
+        function openFile() {
+            let file = document.querySelector("input#input");
+            if (file.files.length === 0) return;
+            let reader = new FileReader();
+            reader.onload = function () {
+                let listOfFormulas = reader.result.split('\r\n');
+                listOfFormulas = listOfFormulas.map(element => {
+                    let obj = element.split(' => ');
+                    obj = { product: obj[1], reactions: obj[0] };
+
+                    obj.reactions = obj.reactions.split(', ');
+                    obj.reactions = obj.reactions.map(element => {
+                        let chemical = element.split(' ');
+                        return new Product(chemical[1], chemical[0]);
+                    })
+
+                    let chemical = obj.product.split(' ');
+                    obj.product = new Product(chemical[1], chemical[0]);
+                    return obj;
+                });
+                //{reactions:[{quantity:int, name: str}], product:{quantity:int, name: str}}
+                let fuel = new Fuel(listOfFormulas);
+                let element = document.getElementById("output");
+                element.innerHTML = "Total ores needed to create 1 fuel: " + fuel.chemicalsHash["ORE"].quantity;
+
+                let totalOres = 1000000000000;
+                let totalFuels = fuel.getFuelsFrom(totalOres);
+
+                element.innerHTML += "<br> Total fuels created: " + totalFuels;
+            }
+            reader.readAsText(file.files[0]);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <Title>Advent of Code Problem 6</Title>
+  </head>
+<body>
+<input id = "inputFile" type = "file" onchange = "openAndProcessFile()">
+<p id="output">0</p>
+<script src = "common.js"></script>
+<script>
+  var log = new Logging(false);
+  function setDescendentsOf(tree, items)
+    {
+        log.logMe("Find child of " + tree.name);
+        var item;
+        var child;
+        for(var i = 0; i < items.length; i++)
+        {
+            if(items[i][0] == tree.name)//item's parent matches root
+            {
+                child = new Node(items[i][1]);//create new child node
+                tree.addChild(child);
+                items.splice(i, 1);
+                log.logMe("Child of " + tree.name + " found at " + i); 
+                i--;
+            }
+        }
+        if(tree.children.length == 0) return false;
+        for(subTree of tree.children)
+        {
+            setDescendentsOf(subTree, items);
+        }
+        return true;
+    }
+  function setParentOf(tree, items)
+    {
+        var parent;
+        for(var i = 0; i < items.length; i++)
+        {
+            if(items[i][1] == tree.name)//item's child matches root
+            {
+                parent = new Node(items[i][0]);
+                parent.addChild(tree.root);
+                log.logMe("Parent of " + tree.name + " found at " + i);
+                tree.root = parent;
+                log.logMe(tree.toString());
+                items.splice(i, 1);
+                return true;//a node can only have one parent
+            }
+        }
+        return false;
+    }
+  function createTreeFrom(data)
+  {
+    var tree, newTree;
+    var node, found;
+    var item, items = [];
+    for(item of data)
+    {
+        items.push(item.split(')'));
+    }
+    log.logMe(items);
+    
+    item = items.shift();//removes the first item in array
+    //first set tree's root to item[0] and child to item[1]
+    node = new Node(item[1]);
+    tree = new Tree(new Node(item[0]));
+    tree.addChild(node);
+    do
+    {
+        setDescendentsOf(tree,items);
+        found = setParentOf(tree, items);
+        log.logMe(tree.toString());  
+    }while(found)
+    return tree;
+  }
+  function getTotalOrbitsFor(tree, level)
+  {
+      if(level == undefined) level = 0;
+      var totalOrbits = level; //level of tree
+      for(child of tree.children)
+      {
+          if(child == undefined) return 0;
+          else 
+            //sum of levels of children
+            totalOrbits = totalOrbits + getTotalOrbitsFor(child, level + 1);
+      }
+      log.logMe(tree.name + " " + level);
+      return totalOrbits;
+  }
+  function openAndProcessFile()
+  {
+    var input = document.querySelector('input#inputFile');
+    if(input.files.length == 0) return;
+    var reader = new FileReader();
+    reader.onload = function()
+    {
+      var data = reader.result.split('\r\n');
+      log.logMe(data);
+      var tree = createTreeFrom(data);
+      var element = document.getElementById('output');
+      //element.innerHTML = "Total orbits are " + getTotalOrbitsFor(tree);
+      var pathToYou = [], pathToSan = [];
+      tree.findChild("YOU", pathToYou);
+      tree.findChild("SAN", pathToSan)
+      pathToYou.reverse();
+      pathToSan.reverse();
+      var oribtsJumped = 0;
+      for(var i = 0; i < pathToYou.length; i++)
+      {
+        if(i >= pathToSan.length)
+        {
+            orbitsJumped = pathToYou.length - i; 
+            break;
+        }
+        else if(pathToYou[i] != pathToSan[i])
+        {
+            orbitsJumped = (pathToSan.length - i) + (pathToYou.length - i) - 2 /*exclude themselves*/;
+            break;
+        }
+      }
+      element.innerHTML = "Total orbits jumped: " + orbitsJumped;
+    }
+    reader.readAsText(inputFile.files[0]);
+  }
+</script>
+
+</body>
+</html>

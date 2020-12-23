@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Problem 15</title>
+    </head>
+    <body>
+        <input id = "input" type = "file" onchange="openFile()">
+        <div id = "output"></div>
+        <script src = "common.js"></script>
+        <script>
+            class ExplorerDroid extends Droid
+            {
+                constructor(machine, objectTypes)
+                {
+                    let dirTypes = {north:1, south:2, west:3, east:4};
+                    super(machine, objectTypes, dirTypes);
+                }
+                run(direction)
+                {
+                    let output = super.run([direction]);
+                    let code = output.outputs[0];
+                    if(code === undefined)
+                        return;
+                    let newPosition = this.calcNew(this.position, direction);
+                    let newType;
+                    let listNewPositions = [];
+                    let types = this.getTypes();
+                    switch(code)
+                    {
+                        case 0: //The repair droid hit a wall. Its position has not changed.
+                            newType = types.wall;
+                            listNewPositions.push({location:newPosition, type:newType});
+                            break;
+                        case 1://The repair droid has moved one step in the requested direction.
+                            listNewPositions.push({location:this.position, type:types.path});
+                            newType = types.droid;
+                            this.position = newPosition;
+                            listNewPositions.push({location:newPosition, type:newType});
+                            break;
+                        case 2: //The repair droid has moved one step in the requested direction; 
+                                //its new position is the location of the oxygen system.
+                            listNewPositions.push({location:this.position, type:types.path});
+                            this.position = newPosition;
+                            newType = types.station;
+                            listNewPositions.push({location:newPosition, type:newType});
+                            newType = types.droid;
+                            listNewPositions.push({location:newPosition, type:newType});
+                            break;
+                        default:
+                            throw "unknown output!";
+                    }
+                    return listNewPositions;
+                }
+            }
+            
+            class ExplorerDroidDriver extends DroidDriver
+            {
+                constructor(droid, pathType, wallType)
+                {
+                    super(droid, pathType, wallType);
+                    this._curOxygens = [];
+                }
+                updateMap(list)
+                {
+                    super.updateMap(list);
+                    for(let item of list)
+                    {
+                        if(item.type === this._droid.objectTypes.station){
+                            this.station = item.location;
+                        }
+                    }
+                }
+                getNextDirection()
+                {
+                    let direction = super.getNextDirection();
+                    if(this.station !== undefined)
+                    {
+                        let stop = true;
+                        for(let key in this._map)
+                        {
+                            if((this._map[key].count === 0) && (this._map[key].type !== this._wallType))
+                            {
+                                stop = false;
+                                break;
+                            }
+                        }
+                        if(stop)
+                            return -1;
+                    }
+                    return direction;
+                }
+                getNextOxygen()
+                {
+                    let stop = true;
+                    for(let key in this._map)
+                    {
+                        if(this._map[key].type === this._droid.objectTypes.path)
+                        {
+                            stop = false;
+                            break;
+                        }
+                    }
+                    if(stop)
+                        return -1;
+                    let oxygenType = this._droid.objectTypes.oxygen;
+                    if(this._curOxygens.length === 0)
+                    {
+                        this._curOxygens.push({location:this.station, type:oxygenType});
+                        this._map[this.station.toString()].type = oxygenType;
+                        this.minutes = 0;
+                    }
+                    else
+                    {
+                        let newOxygensHash = {};
+                        let newOxygens = [];
+                        let pos;
+                        for(let oxygen of this._curOxygens)
+                        {
+                            for(let dir of this._availDirections)
+                            {
+                                pos = this._droid.calcNew(oxygen.location, dir).toString();
+                                if(this._map[pos].type !== this._droid.objectTypes.wall)
+                                {
+                                    this._map[pos].type = oxygenType;
+                                    newOxygensHash[pos] = oxygenType;
+                                }
+                            }
+                        }
+                        for(let key in newOxygensHash)
+                        {
+                            newOxygens.push({location:Coordinate.parse(key), type:oxygenType});
+                        }
+                        this._curOxygens = newOxygens;
+                        this.minutes ++;
+                    }
+                    return this._curOxygens;
+                }
+            }
+            function openFile()
+            {
+                let file = document.querySelector("input#input");
+                if(file.files.length === 0) return;
+                let reader = new FileReader();
+                reader.onload = function()
+                {
+                    let program = reader.result.split(',').map(function(item)
+                                { return parseInt(item)});
+                    let machine = new IntCodeMachine(program);
+                    let objectTypes =  {path:"gray", wall:"black", station:"green", droid:"red", space:"white", oxygen:"blue"};
+                    function decodeColor(cCode)
+                    {
+                        return cCode;
+                    }
+                    let droid = new ExplorerDroid(machine, objectTypes);
+                    let board = new Board("pink", droid.position, objectTypes.space, decodeColor);
+                    let driver = new ExplorerDroidDriver(droid, objectTypes.path, objectTypes.wall);
+                    let element = document.getElementById("output");
+                    let input = 0, output;
+                    /*do{
+                        input = driver.getNextDirection();
+                        output = droid.run(input);
+                        board.update(output);
+                        driver.updateMap(output);
+                    } while(input !== -1);*/
+                    element.innerHTML = board.draw();
+                    let interval = setInterval(updateShipExploration, 10);
+                    function updateOxygenExpansion()
+                    {
+                        output = driver.getNextOxygen();
+                        if(output === -1)
+                        {
+                            clearInterval(interval);
+                            element.innerHTML += "<p> total minutes: " + driver.minutes + "</p>";
+                        }
+                        else
+                        {
+                            board.update(output);
+                            element.innerHTML = board.draw();
+                        }
+                    }
+                    function updateShipExploration()
+                    {
+                        input = driver.getNextDirection();
+                        if(input === -1)
+                        {
+                            clearInterval(interval);
+                            interval = setInterval(updateOxygenExpansion, 50);
+                        }
+                        else
+                        {
+                            output = droid.run(input);
+                            board.update(output);
+                            element.innerHTML = board.draw();
+                            driver.updateMap(output);
+                        }
+                    };
+                }
+                reader.readAsText(file.files[0]);
+            }
+        </script>
+    </body>
+</html>

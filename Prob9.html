@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent of Code Problem 9</Title>
+    </head>
+    <body>
+        <p id = "instruction">Select input file</p>
+        <input id = "inputFile" type = "file" onChange = "openFile()">
+        <p id = "outputValue">Output</p>
+        <script src = "common.js"></script>
+        <script>
+            //opens an input file and output the first position 
+            function openFile()
+            {
+              var input = document.querySelector('input#inputFile');
+              if(input.files.length == 0) return;
+              var reader = new FileReader();
+              reader.onload = function()
+              {
+                var program = reader.result.split(',').map(function(item)
+                            { return parseInt(item)});
+                    var input = [2];
+                    var output = runProgramOn(input, program);
+                    document.getElementById("outputValue").innerHTML = 
+                    "output: " + output + " max: " + (Number.MAX_SAFE_INTEGER+1);
+              }
+              reader.readAsText(inputFile.files[0]);
+            }
+        </script>
+    </body>
+
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <title>Problem 18</title>
+    </head>
+    <body>
+        <input type = "file" id = "input" onchange="openFile()">
+        <div id = "output"></div>
+        <script src = "common.js"></script>
+        <script>
+            class TunnelDroid extends Droid{
+                isKeyType(type)
+                {
+                    return isLowerCaseLetter(type);
+                }
+                isDoorType(type)
+                {
+                    return isUpperCaseLetter(type);
+                }
+            }
+            class TunnelDroidDriver extends DroidDriver
+            {
+                constructor(list)
+                {
+                    let dirTypes = {north:"N", south:"S", west:"W", east:"E"};
+                    let objectTypes = {wall:'#', path:'.', droid:'*'};
+                    let droid = new TunnelDroid(undefined, objectTypes, dirTypes);
+                    super(droid);
+                    function decode(cCode)
+                    {
+                        switch(cCode)
+                        {
+                            case '.':
+                                return "gray";
+                            case '#':
+                                return "black";
+                            case '*':
+                                return "green";
+                            default:
+                                if(isUpperCaseLetter(cCode))
+                                    return "brown";
+                                if(isLowerCaseLetter(cCode))
+                                    return "yellow";
+                        }
+                    }
+                    this.board = new Board(undefined, undefined, undefined, decode);
+                    this.keys = {};
+                    this.updateMap(list);
+                    this.totalSteps = 0;
+                    this.tripStart = this._droid.position.toString();
+                    this.route = {};
+                    this.tripSteps = 0;
+                    this.trips = [];
+                }
+                updateMap(list)
+                {
+                    if(list === undefined) 
+                        return;
+                    let item, secondChoiceInput, locString;
+                    let types = this._droid.getTypes();
+                    for(item of list)
+                    {
+                        locString = item.location.toString();
+
+                        if(item.type === types.droid)
+                        {
+                            this._droid.position = item.location;
+                        }
+                        else
+                        {
+                            if(this._map[locString] === undefined)
+                                this._map[locString] = {type:item.type, count:0};
+                            else if (this._map[locString].type !== item.type)
+                            {
+                                this._map[locString].type = item.type;
+                                this._map[locString].count++;
+                            }
+                            else
+                                this._map[locString].count++;
+                        }
+                        if(this._droid.isKeyType(item.type))
+                        {
+                            this.keys[item.type] = false;
+                        }
+                    }
+                    this.board.update(list);
+                }
+                getNextDirection()
+                {
+                    let smallestCount = Infinity;
+                    let totalDirections = this._availDirections.length;
+                    let keyForDoor, dirIndex = this._dirIndex;
+                    let newPosStr;
+                    for(let i = 0; i < totalDirections; i++)
+                    {
+                        newPosStr = this._droid.calcNew(this._droid.position, this._availDirections[dirIndex]).toString();
+                        if(this._droid.isDoorType(this._map[newPosStr].type))
+                        //can only go there if there is a key for the door
+                        {
+                            keyForDoor = this._map[newPosStr].type.toLowerCase();
+                            if(this.keys[keyForDoor])
+                            {
+                                this._dirIndex = dirIndex;
+                                break;
+                            }
+                        }
+                        else if(this._droid.isKeyType(this._map[newPosStr].type))
+                        {
+                            this._dirIndex = dirIndex;
+                            break;
+                        }
+                        else if(this._map[newPosStr].type === this._pathType)
+                        {
+                            if(this._map[newPosStr].count < smallestCount)
+                            {
+                                smallestCount = this._map[newPosStr].count;
+                                this._dirIndex = dirIndex;
+                            }
+                        }
+                        dirIndex = (dirIndex + 1) % totalDirections;
+                    }
+                    return this._availDirections[this._dirIndex];
+                }
+                takeNextStep()
+                {
+                    let stop = true;
+                    for(let type in this.keys)
+                    {
+                        if(!this.keys[type])
+                            stop = false;
+                    }
+                    if(stop)
+                        return -1;
+
+                    let direction = this.getNextDirection();
+                    let newPosition = this._droid.calcNew(this._droid.position, direction);
+                    let newPosStr = newPosition.toString();
+                    let itemAtNewPos = this._map[newPosStr];
+                    let droidPosStr = this._droid.position.toString();
+                    if(this.tripStart === droidPosStr)
+                    {
+                        this.tripSteps = 0;
+                        this.route = {};
+                    }
+                    else if (this.route[droidPosStr] !== undefined)
+                    {
+                        delete this.route[droidPosStr];
+                        this.tripSteps --;
+                    }
+                    else
+                    {
+                        this.route[droidPosStr] = true;
+                        this.tripSteps ++;
+                    }
+                    this.updateMap([{location:this._droid.position, type:this._pathType}]);
+                    if(this._droid.isKeyType(itemAtNewPos.type))
+                    {
+                        this.keys[itemAtNewPos.type] = true;
+                        this.tripSteps ++;
+                        this.totalSteps += this.tripSteps;
+                        this.trips.push(itemAtNewPos.type);
+                        this.tripSteps = 0;
+                        this.route = {};
+                        this.tripStart = newPosStr;
+                    }
+                    this.updateMap([{location:newPosition, type:this._droid.getTypes().droid}]);
+                    return this.board.draw();
+                }
+            }
+            function openFile()
+            {
+                function processRawMap(rawMap)
+                {
+                    let map = [];
+                    let x = 0, y = 0;
+                    for(let char of rawMap)
+                    {
+                        if(char === '\n')
+                        {
+                            y++;
+                            x = 0;
+                        }
+                        else if (char === '\r')
+                        {
+
+                        }
+                        else
+                        {
+                            map.push({location: new Coordinate(x, y), type: char});
+                            x++;
+                        }
+                    }
+                    return map.slice(0);
+                }
+                var input = document.querySelector('input#input');
+                if(input.files.length == 0) return;
+                var reader = new FileReader();
+                reader.onload = function()
+                {
+                    let rawMap = reader.result;
+                    let map = processRawMap(rawMap);
+                    let driver = new TunnelDroidDriver(map);
+                    let element = document.getElementById("output");
+                    let interval = setInterval(runDriver, 100);
+                    function runDriver()
+                    {
+                        let html;
+                        html = driver.takeNextStep();
+                        if(html === -1)
+                        {
+                            clearInterval(interval);
+                        }
+                        else
+                        {
+                            element.innerHTML = html;
+                            element.innerHTML += driver.totalSteps;
+                            element.innerHTML += "<br>";
+                            element.innerHTML += driver.trips;
+                        }
+                    };
+                }
+                
+                reader.readAsText(input.files[0]);
+            }
+        </script>
+    </body>
+</html>

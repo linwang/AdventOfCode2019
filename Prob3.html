@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset = "utf-8">
+        <Title>Advent Of Code Problem 3</Title>
+    </head>
+    <body>
+        <p>Open the input file</p>
+        <input type = "file" id = "inputFile" onchange="openAndLoad()">
+        <p>The program output is: </p>
+        <p id = "output"></p>
+        <script>
+            function calcMDistanceToOrigin(num)
+            {
+                //var num = coordinate.split(",");
+                return (Math.abs(num[0])+Math.abs(num[1]));
+            }
+            function mapWireOnBoard(wireStr)
+            {
+                //convert instruction into ending point and
+                //total steps
+                //beginning at [0,0], "U2" means endig at [0,2] 
+
+                var wire = wireStr.split(",");
+                const x = 0, y = 1, total = 2;
+                var board = [[0,0,0]];//x, y, total steps
+                var cur = [0,0,0];
+                var steps = 0;
+                var totalSteps = 0;
+                for(var i = 0; i < wire.length; i++)
+                {
+                    //how many steps to move
+                    steps = Number(wire[i].substring(1));
+                    totalSteps += steps;
+                    switch(wire[i][0])
+                    {
+                        case 'U':
+                            cur[y] += steps;
+                        break;
+                        case 'D':
+                            cur[y] -= steps;
+                        break;
+                        case 'R':
+                            cur[x] += steps;
+                        break;
+                        case 'L':
+                            cur[x] -= steps;
+                        break;
+                        default: console.log("unknown instruction" + wire[i][0]);
+                    }
+                    cur[total] = totalSteps;
+                    board.push(cur.slice(0));
+                }
+                console.log(board);
+                return board;
+            }
+            function getCrossPoint(line1, line2)
+            {
+                var crossPoint;
+                const x = 0, y = 1, beg = 0, end = 1;
+                if(line1[0][0]==line1[1][0])//same x, vertial line
+                    {
+                        if(line2[beg][y] == line2[end][y])//same y, horizontal line
+                        {
+                            //line1's x is within line2's beginning and ending x coordinates
+                            //line2's y is within line1's beginning and ending y coordinates
+                            if((line1[beg][x] < Math.max(line2[beg][x], line2[end][x]))
+                            && (line1[beg][x] > Math.min(line2[beg][x], line2[end][x]))
+                            &&(line2[beg][y] < Math.max(line1[beg][y], line1[end][y]))
+                            &&(line2[beg][y] > Math.min(line1[beg][y], line1[end][y])))
+                            {
+                                crossPoint = [line1[beg][x],line2[beg][y]];
+                            }
+                        }
+                    }
+                    else if (line1[beg][y]==line1[end][y])//same y, horizontal line
+                    {
+                        if(line2[beg][x]==line2[end][x]) //same x, vertical line
+                        {
+                            if((line2[beg][x] < Math.max(line1[beg][x], line1[end][x]))
+                            && (line2[beg][x] > Math.min(line1[beg][x], line1[end][x]))
+                            &&(line1[beg][y] < Math.max(line2[beg][y], line2[end][y]))
+                            &&(line1[beg][y] > Math.min(line2[beg][y], line2[end][y])))
+                            {
+                                crossPoint = [line2[beg][x],line1[beg][y]];
+                            }
+                        }
+                    }
+                    return crossPoint;
+            }
+            function calcTotalStepsFromOrigin(crossPoint, line1, line2)
+            {
+                const beg = 0, end = 1, x = 0, y = 1, total = 2;
+                var totalOnWire1 = line1[beg][total] 
+                + Math.abs(crossPoint[x]-line1[beg][x]) 
+                + Math.abs(crossPoint[y]-line1[beg][y]);
+                var totalOnWire2 = line2[beg][total]
+                + Math.abs(crossPoint[x]-line2[beg][x]) 
+                + Math.abs(crossPoint[y]-line2[beg][y]);
+                return totalOnWire1 + totalOnWire2;
+            }
+            function openAndLoad()
+            {
+                var input = document.querySelector("input#inputFile");
+                if(input.files.length == 0) return;
+                var reader = new FileReader();
+                reader.onload = function()
+                {
+                    var wires = reader.result.split("\n");
+                    if(wires.length < 2) {
+                    console.log(wires); 
+                    return;
+                    }
+                    var wire1Board = mapWireOnBoard(wires[0]);
+                    var wire2Board = mapWireOnBoard(wires[1]);
+                    
+                    var shortestDistance = Infinity;
+                    var distance = Infinity;
+                    //wire 1 and wire 2 have lines
+                    //beg[x1, y1] end[x2, y2] and beg[x2, y2] end[x2, y2]
+                    var line1, line2;
+                    var crossPoint = [0,0];
+                    for(var i = 0; i < wire2Board.length - 1; i++)
+                    {
+                        line2 = [wire2Board[i], wire2Board[i+1]];
+                        for(var j = 0; j < wire1Board.length - 1; j++)
+                        {
+                            line1 = [wire1Board[j], wire1Board[j+1]];
+                            crossPoint = getCrossPoint(line1, line2);
+                            if(crossPoint != undefined)
+                            {
+                                //distance = calcMDistanceToOrigin(crossPoint);
+                                distance = calcTotalStepsFromOrigin(crossPoint, line1, line2);
+                                if(distance < shortestDistance
+                                && distance != 0)
+                                    shortestDistance = distance;
+                            }
+                        }
+                    }
+                    document.getElementById("output").innerHTML = shortestDistance;
+                }
+                reader.readAsText(inputFile.files[0]);
+            }
+
+        </script>
+    </body>
+</html>
